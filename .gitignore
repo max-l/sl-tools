@@ -3,6 +3,7 @@
 
 target/*
 project/plugins/target/*
+project/plugins/project/*
 /*/target/*
 
 
