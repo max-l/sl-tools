@@ -1,0 +1,12 @@
+.project
+.classpath
+.target
+.cache
+.scala_dependencies
+target/*
+project/target/*
+i18ngen/target*
+templcompl/target/*
+i18ngen/.target/*
+templcompl/.target/*
+
