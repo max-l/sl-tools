@@ -4,7 +4,7 @@ import net.strong_links.core._
 
 import java.io.File
 
-class TemplateParser(file: File, loggers: Loggers) extends BasicLexParser(IO.loadUtf8TextFile(file), loggers) {
+class TemplateParser(file: File, logger: Logger) extends BasicLexParser(IO.loadUtf8TextFile(file), logger) {
 
   class TemplateArgumentMember(val name: String, val firstUseLine: Int, val baseType: String)
 

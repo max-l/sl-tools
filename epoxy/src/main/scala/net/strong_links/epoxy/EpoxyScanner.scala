@@ -4,7 +4,7 @@ import net.strong_links.core._
 
 import java.io.File
 
-abstract class EpoxyScanner(loggers: Loggers) {
+abstract class EpoxyScanner(logger: Logger) {
 
   var hasError = false
 
@@ -85,10 +85,10 @@ abstract class EpoxyScanner(loggers: Loggers) {
   def run(inputDirectory: File, outputDirectory: File, rootPackage: Option[String], rebuild: Boolean) = {
 
     IO.checkForExistingDirectories(inputDirectory, outputDirectory)
-    loggers.debug("Input directory: _" <<< inputDirectory.getCanonicalPath)
-    loggers.debug("Output directory: _" <<< outputDirectory.getCanonicalPath)
-    loggers.debug("Root package:_" <<< (rootPackage match { case None => "(none)"; case Some(x) => x }))
-    loggers.debug("Rebuild: _" <<< (if (rebuild) "Yes" else "No"))
+    logger.debug("Input directory: _" <<< inputDirectory.getCanonicalPath)
+    logger.debug("Output directory: _" <<< outputDirectory.getCanonicalPath)
+    logger.debug("Root package:_" <<< (rootPackage match { case None => "(none)"; case Some(x) => x }))
+    logger.debug("Rebuild: _" <<< (if (rebuild) "Yes" else "No"))
 
     val filesCreated = new scala.collection.mutable.ListBuffer[File]
 

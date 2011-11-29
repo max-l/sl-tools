@@ -4,7 +4,7 @@ import net.strong_links.core._
 
 package object epoxy {
 
-  type ScannerCreator = Loggers => EpoxyScanner
+  type ScannerCreator = Logger => EpoxyScanner
 
   def UUID_SEPARATOR = "++"
 

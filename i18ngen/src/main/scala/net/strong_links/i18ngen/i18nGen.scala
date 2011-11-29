@@ -8,7 +8,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class I18nCatalog(val packageName: String, val sourceRoot: String, val languageCode: String, val countryCode: String = "")
 
-class I18nGenerator(loggers: Loggers) {
+class I18nGenerator(logger: Logger) {
 
   // Constants.
   val PROGRAM_NAME = "i18nGen"
@@ -81,7 +81,7 @@ class I18nGenerator(loggers: Loggers) {
     // and by definition, comments can be any kind of junk, so we need to plan for
     // this.
     val oops = new Exception
-    class TolerantParser(data: String) extends PoReader(data, loggers) {
+    class TolerantParser(data: String) extends PoReader(data, logger) {
       override def error(startLineNumber: Int, msg: LoggingParameter) = throw oops
       def parse = try recoverEntriesWithSomeTranslations catch {
         case e if (e eq oops) => (None, Nil, Nil)
@@ -103,7 +103,7 @@ class I18nGenerator(loggers: Loggers) {
     // "minimalist", as they do not have any translations yet.
     println("  - Scanning source Scala files.")
     val isScalaFile = (f: File) => f.getAbsolutePath.toLowerCase.endsWith(".scala")
-    IO.scanDirectory(new File(packageDirectoryName), isScalaFile)(new ScalaFileReader(_, mergedEntries, loggers).scan)
+    IO.scanDirectory(new File(packageDirectoryName), isScalaFile)(new ScalaFileReader(_, mergedEntries, logger).scan)
 
     // Try exact matches between recovered entries and new entries. The method returns the entries 
     // that did not macthed as obsolete comments.
@@ -153,7 +153,7 @@ class I18nGenerator(loggers: Loggers) {
 
   def loadPoFile(poFile: File, languageKey: String) = {
 
-    val poFileReader = new PoFileReader(poFile, loggers)
+    val poFileReader = new PoFileReader(poFile, logger)
 
     // Get the entries in the original PO file, along with obsolete comments. 
     val (possibleHeaderEntry, recoveredEntriesWithTranslations, obsoleteComments) =
@@ -232,7 +232,7 @@ class I18nGenerator(loggers: Loggers) {
       // Generate the resource file
       val scalaResourceFile = new File(resourceFileName)
       val resourceFileWriter = new ResourceFileWriter(scalaResourceFile, className, languageKey, nbPluralForms,
-        pluralForms, finalEntries, loggers)
+        pluralForms, finalEntries, logger)
       resourceFileWriter.generateAndClose
       println("  - File _ generated successfully." <<< resourceFileName)
       scalaResourceFile

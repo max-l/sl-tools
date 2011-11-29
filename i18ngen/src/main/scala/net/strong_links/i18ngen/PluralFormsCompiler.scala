@@ -1,12 +1,11 @@
 package net.strong_links.i18ngen
 
 import net.strong_links.core._
-import scala.collection.mutable.ListBuffer
 
 import LexSymbol._
 
-class PluralFormsCompiler(data: String, loggers: Loggers) extends LexParser(data, loggers) {
-  val output = ListBuffer[String]()
+class PluralFormsCompiler(data: String, logger: Logger) extends LexParser(data, logger) {
+  val output = scala.collection.mutable.ListBuffer[String]()
   var stackLevel = -1
   val allocatedRegisters = scala.collection.mutable.Set[Int]()
   

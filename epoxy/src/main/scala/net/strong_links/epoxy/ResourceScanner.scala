@@ -4,7 +4,7 @@ import net.strong_links.core._
 
 import java.io.File
 
-class ResourceScanner(loggers: Loggers) extends EpoxyScanner(loggers) {
+class ResourceScanner(logger: Logger) extends EpoxyScanner(logger) {
 
   var stackTrace = false
 
@@ -60,9 +60,9 @@ class ResourceScanner(loggers: Loggers) extends EpoxyScanner(loggers) {
     val entries = (recycledEntries ::: newEntries).sortWith(_.name < _.name)
 
     if (reuseCacheFile) {
-      loggers.debug("Cache file has been reused.")
+      logger.debug("Cache file has been reused.")
     } else {
-      loggers.debug("Cache file has been recreated; _ MD5 entries recycled." <<< recycledEntries.length)
+      logger.debug("Cache file has been recreated; _ MD5 entries recycled." <<< recycledEntries.length)
       IO.writeUtf8ToFile(resCompCacheFile, entries.map(e => e.name + "\t" + e.uuid + "\t" + e.lastModified).mkString("\n"))
     }
 
@@ -73,7 +73,7 @@ class ResourceScanner(loggers: Loggers) extends EpoxyScanner(loggers) {
         true
 
     if (generate) {
-      loggers.debug("Generating new file _." <<< outputFile.getCanonicalPath)
+      logger.debug("Generating new file _." <<< outputFile.getCanonicalPath)
       generateScalaFile(entries, outputFile, directory, masterPackageName, packageName, className, Nil) { e =>
         val cs = new LeveledCharStream
         cs.println("def _ = {" << e.makeFunctionName(directory))
@@ -86,7 +86,7 @@ class ResourceScanner(loggers: Loggers) extends EpoxyScanner(loggers) {
       }
       Some(outputFile)
     } else {
-      loggers.debug("File _ is up-to-date." <<< outputFile.getCanonicalPath)
+      logger.debug("File _ is up-to-date." <<< outputFile.getCanonicalPath)
       None
     }
   }
@@ -100,15 +100,15 @@ class ResourceScanner(loggers: Loggers) extends EpoxyScanner(loggers) {
     // Check if there are files in this directory.
     val files = directory.listFiles.toList.filter(_.isFile).filter(_.getName != resCompCacheFileName)
 
-    loggers.debug("Processing directory: _" <<< directory.getCanonicalPath)
-    loggers.debug("Number of files: _" <<< files.length)
+    logger.debug("Processing directory: _" <<< directory.getCanonicalPath)
+    logger.debug("Number of files: _" <<< files.length)
 
     if (files.isEmpty) {
-      loggers.debug("Directory empty, deleting _ if it exists." <<< resCompCacheFile.getCanonicalPath)
+      logger.debug("Directory empty, deleting _ if it exists." <<< resCompCacheFile.getCanonicalPath)
       IO.deleteFile(resCompCacheFile, true)
       None
     } else {
-      loggers.debug("Directory not empty, processing files.")
+      logger.debug("Directory not empty, processing files.")
       processFiles(files, resCompCacheFile, directory, inputDirectory, outputDirectory, rootPackage, rebuild)
     }
   }

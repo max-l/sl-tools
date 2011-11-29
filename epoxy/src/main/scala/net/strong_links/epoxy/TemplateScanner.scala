@@ -6,12 +6,12 @@ import java.io.File
 
 import SbtInterface._
 
-class TemplateScanner(loggers: Loggers) extends EpoxyScanner(loggers) {
+class TemplateScanner(logger: Logger) extends EpoxyScanner(logger) {
 
   var stackTrace = false
 
   def generateTemplate(file: File, outputFile: File, masterPackageName: String, packageName: String, className: String) {
-    val entries = new TemplateParser(file, loggers).compile
+    val entries = new TemplateParser(file, logger).compile
     if (entries.isEmpty)
       IO.deleteFile(outputFile, true)
     else {
@@ -39,12 +39,12 @@ class TemplateScanner(loggers: Loggers) extends EpoxyScanner(loggers) {
       else
         true
 
-    loggers.debug("Processing input file: _" <<< file.getCanonicalPath)
-    loggers.debug("Output file: _" <<< outputFile.getCanonicalPath)
-    loggers.debug("Package: _" <<< packageName)
+    logger.debug("Processing input file: _" <<< file.getCanonicalPath)
+    logger.debug("Output file: _" <<< outputFile.getCanonicalPath)
+    logger.debug("Package: _" <<< packageName)
     
     if (generate) {
-      loggers.debug("Generating new file _." <<< outputFile.getCanonicalPath)
+      logger.debug("Generating new file _." <<< outputFile.getCanonicalPath)
       try {
         generateTemplate(file, outputFile, masterPackageName, packageName, className)
         Some(outputFile)
@@ -57,7 +57,7 @@ class TemplateScanner(loggers: Loggers) extends EpoxyScanner(loggers) {
           Errors.fatal(e)
       }
     } else {
-      loggers.debug("File _ is up-to-date." <<< outputFile.getCanonicalPath)
+      logger.debug("File _ is up-to-date." <<< outputFile.getCanonicalPath)
       None
     }
   }
