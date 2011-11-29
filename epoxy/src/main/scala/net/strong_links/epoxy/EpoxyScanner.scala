@@ -38,7 +38,7 @@ abstract class EpoxyScanner(logger: Logger) {
       val results = rootPackage match {
         case None => segments
         case Some(rp) =>
-          val leadingSegments = if (rp.contains(".")) rp.split(".").toList else List(rp)
+          val leadingSegments = if (rp.contains(".")) rp.split('.').toList else List(rp)
           leadingSegments ::: segments
       }
       if (results.length < 2)
@@ -53,11 +53,11 @@ abstract class EpoxyScanner(logger: Logger) {
     val segments = file.getName.split('.').filter(!_.isEmpty)
     if (segments.length < 2)
       Errors.fatal("Invalid file name _." << file.getCanonicalPath)
-    segments.dropRight(1).mkString
+    normalizeName(segments.dropRight(1).mkString, "File name _" << file.getCanonicalPath)
   }
 
   def generateScalaFile[T](entries: Seq[T], outputFile: File, sourceFile: File,
-    masterPackageName: String, packageName: String, className: String, imports: List[String])(code: T => String) {
+    masterPackageName: String, packageName: String, className: String, objectName: String, imports: List[String])(code: T => String) {
     val cs = new LeveledCharStream
     header(cs, sourceFile.getCanonicalPath, outputFile.getCanonicalPath)
     cs.block("package _" << masterPackageName) {
@@ -72,7 +72,7 @@ abstract class EpoxyScanner(logger: Logger) {
         }
       }
       cs.println
-      cs.println("package object _ extends _._._" << (packageName, masterPackageName, packageName, className))
+      cs.println("package object _ extends _._._" << (objectName, masterPackageName, packageName, className))
     }
     IO.createDirectory(outputFile.getParentFile, true)
     IO.writeUtf8ToFile(outputFile, cs.close)
@@ -84,7 +84,8 @@ abstract class EpoxyScanner(logger: Logger) {
 
   def run(inputDirectory: File, outputDirectory: File, rootPackage: Option[String], rebuild: Boolean) = {
 
-    IO.checkForExistingDirectories(inputDirectory, outputDirectory)
+    IO.checkForExistingDirectory(inputDirectory)
+    IO.createDirectory(outputDirectory, true)
     logger.debug("Input directory: _" <<< inputDirectory.getCanonicalPath)
     logger.debug("Output directory: _" <<< outputDirectory.getCanonicalPath)
     logger.debug("Root package:_" <<< (rootPackage match { case None => "(none)"; case Some(x) => x }))

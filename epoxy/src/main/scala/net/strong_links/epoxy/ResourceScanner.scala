@@ -21,9 +21,11 @@ class ResourceScanner(logger: Logger) extends EpoxyScanner(logger) {
 
   def processFiles(files: List[File], resCompCacheFile: File, directory: File, inputDirectory: File, outputDirectory: File, rootPackage: Option[String], rebuild: Boolean): Option[File] = {
     val segments = computePackageNameSegments(directory, inputDirectory, rootPackage)
+    val fullPackageName = segments.mkString(".")
     val masterPackageSegments = segments.dropRight(1)
     val masterPackageName = masterPackageSegments.mkString(".")
     val packageName = segments.last
+    val objectName = packageName
     val className = packageName.capitalize
     val outputDirectoryName = outputDirectory.getCanonicalPath + IO.dirSeparator + segments.mkString(IO.dirSeparator)
     val outputFile = new File(outputDirectoryName + IO.dirSeparator + "package.scala")
@@ -74,7 +76,7 @@ class ResourceScanner(logger: Logger) extends EpoxyScanner(logger) {
 
     if (generate) {
       logger.debug("Generating new file _." <<< outputFile.getCanonicalPath)
-      generateScalaFile(entries, outputFile, directory, masterPackageName, packageName, className, Nil) { e =>
+      generateScalaFile(entries, outputFile, directory, masterPackageName, packageName, className, objectName, Nil) { e =>
         val cs = new LeveledCharStream
         cs.println("def _ = {" << e.makeFunctionName(directory))
         cs.increaseLevel

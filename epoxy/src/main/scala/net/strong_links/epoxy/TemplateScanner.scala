@@ -4,31 +4,37 @@ import net.strong_links.core._
 
 import java.io.File
 
-import SbtInterface._
-
 class TemplateScanner(logger: Logger) extends EpoxyScanner(logger) {
 
   var stackTrace = false
 
-  def generateTemplate(file: File, outputFile: File, masterPackageName: String, packageName: String, className: String) {
+  def generateTemplate(file: File, outputFile: File, masterPackageName: String, packageName: String,
+    className: String, objectName: String) {
     val entries = new TemplateParser(file, logger).compile
     if (entries.isEmpty)
       IO.deleteFile(outputFile, true)
     else {
-      val imports = List("net.strong_links.core._", "net.strong_links.core.Convert._", 
-                         "net.strong_links.scalaforms.BaseField", "net.strong_links.scalaforms.OutStream",
-                         "import net.strong_links.scalaforms.fieldTransformer", <a/>.getClass.getCanonicalName)
-      generateScalaFile(entries, outputFile, file, masterPackageName, packageName, className, imports)(_.code)
+      val imports = List("net.strong_links.core._", "net.strong_links.core.Convert._",
+        "net.strong_links.scalaforms.BaseField", "net.strong_links.scalaforms.OutStream",
+        "net.strong_links.scalaforms.fieldTransformer", <a/>.getClass.getCanonicalName)
+      generateScalaFile(entries, outputFile, file, masterPackageName, packageName, className, objectName, imports)(_.code)
     }
   }
-  
+
   def process(file: File, inputDirectory: File, outputDirectory: File, rootPackage: Option[String], rebuild: Boolean) = {
     val segments = computePackageNameSegments(file.getParentFile, inputDirectory, rootPackage)
+    val fullPackageName = segments.mkString(".")
     val masterPackageSegments = segments.dropRight(1)
     val masterPackageName = masterPackageSegments.mkString(".")
     val packageName = segments.last
-    val name = getFileNameWithoutExtension(file)
-    val className = name.capitalize
+    val objectName = {
+      val x = getFileNameWithoutExtension(file)
+      if (x(0).isUpper)
+        x(0).toLower + x.substring(1)
+      else
+        x
+    }
+    val className = objectName.capitalize
     val outputDirectoryName = outputDirectory.getCanonicalPath + IO.dirSeparator + (segments.mkString(IO.dirSeparator))
     IO.createDirectory(new File(outputDirectoryName), true)
     val outputFile = new File(outputDirectoryName + IO.dirSeparator + className + ".scala")
@@ -41,15 +47,15 @@ class TemplateScanner(logger: Logger) extends EpoxyScanner(logger) {
 
     logger.debug("Processing input file: _" <<< file.getCanonicalPath)
     logger.debug("Output file: _" <<< outputFile.getCanonicalPath)
-    logger.debug("Package: _" <<< packageName)
-    
+    logger.debug("Package: _" <<< fullPackageName)
+
     if (generate) {
       logger.debug("Generating new file _." <<< outputFile.getCanonicalPath)
       try {
-        generateTemplate(file, outputFile, masterPackageName, packageName, className)
+        generateTemplate(file, outputFile, masterPackageName, packageName, className, objectName)
         Some(outputFile)
       } catch {
-        case e: LexError => 
+        case e: LexError =>
           hasError = true
           IO.deleteFile(outputFile, true)
           None
