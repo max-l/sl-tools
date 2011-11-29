@@ -1,12 +1,16 @@
+
+# SBT ignores :
+
+target/*
+project/plugins/target/*
+project/plugins/project/*
+/*/target/*
+
+
+# Scala-IDE ignores :
+
+.scala_dependencies
 .project
 .classpath
 .target
 .cache
-.scala_dependencies
-target/*
-project/target/*
-i18ngen/target*
-templcompl/target/*
-i18ngen/.target/*
-templcompl/.target/*
-
