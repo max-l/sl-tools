@@ -4,7 +4,7 @@ import net.strong_links.core._
 
 import java.io.File
 
-class ScalaFileReader(file: File, entryBag: PoEntryBag) extends LexParser(IO.loadUtf8TextFile(file)) {
+class ScalaFileReader(file: File, entryBag: PoEntryBag, loggers: Loggers) extends LexParser(IO.loadUtf8TextFile(file), loggers) {
   
   override def getFileName = Some(file.getAbsolutePath)
 

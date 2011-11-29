@@ -19,12 +19,12 @@ object Buildz extends Build {
     id = "root",
     base = file("."),
 	settings = buildSettings
-  ) aggregate(templcomp, i18ngen)
+  ) aggregate(epoxy, i18ngen)
   
   
-  lazy val templcomp = Project(
-    id = "templcomp",
-    base = file("templcomp"),    
+  lazy val epoxy = Project(
+    id = "epoxy",
+    base = file("epoxy"),    
     settings = buildSettings
   )
   

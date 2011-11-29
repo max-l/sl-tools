@@ -5,7 +5,7 @@ import scala.collection.mutable.ListBuffer
 
 import LexSymbol._
 
-class PluralFormsCompiler(data: String) extends LexParser(data) {
+class PluralFormsCompiler(data: String, loggers: Loggers) extends LexParser(data, loggers) {
   val output = ListBuffer[String]()
   var stackLevel = -1
   val allocatedRegisters = scala.collection.mutable.Set[Int]()

@@ -116,12 +116,12 @@ object PoEntry {
 class PoEntryWriter(entry: PoEntry, cs: CharStream) {
 
   private def emitEmptyLine {
-    cs.write("\n")  
+    cs.print("\n")  
   }
 
   private def emitComments(prefix: Char, f: PoComment => Boolean) {
     for (c <- entry.comments.filter(f))
-      cs.write("#_ _\n" << (prefix, c.value))
+      cs.print("#_ _\n" << (prefix, c.value))
   }
 
   private def emitComments {
@@ -130,7 +130,7 @@ class PoEntryWriter(entry: PoEntry, cs: CharStream) {
   }
 
   private def emitReference(reference: PoReference) {
-    cs.write("#: _:_\n" << (reference.absolutePath, reference.lineNumber))
+    cs.print("#: _:_\n" << (reference.absolutePath, reference.lineNumber))
   }
   
   private def getNextTranslation(it: Iterator[String]) = {
@@ -150,18 +150,18 @@ class PoEntryWriter(entry: PoEntry, cs: CharStream) {
   
   private def emitNeutral {
     val it = entry.translations.iterator
-    cs.write("msgid \"_\"\n" << niceString(entry.msgid))
-    cs.write("msgstr \"_\"\n" << niceString(getNextTranslation(it)))
+    cs.print("msgid \"_\"\n" << niceString(entry.msgid))
+    cs.print("msgstr \"_\"\n" << niceString(getNextTranslation(it)))
   }
 
   private def emitNonNeutral {
-    cs.write("msgid \"_\"\n" << niceString(entry.msgid))
+    cs.print("msgid \"_\"\n" << niceString(entry.msgid))
     val Some(p) = entry.msgidPlural
-    cs.write("msgid__plural \"_\"\n" << niceString(p))
+    cs.print("msgid__plural \"_\"\n" << niceString(p))
     val it = entry.translations.iterator
     var i = 0
     while (it.hasNext) {
-      cs.write("msgstr[_] \"_\"\n" << (i, niceString(getNextTranslation(it))))
+      cs.print("msgstr[_] \"_\"\n" << (i, niceString(getNextTranslation(it))))
       i += 1
     }
   }
@@ -172,10 +172,10 @@ class PoEntryWriter(entry: PoEntry, cs: CharStream) {
     for (r <- entry.references)
       emitReference(r)
     if (entry.fuzzy)
-      cs.write("#, fuzzy\n")
+      cs.print("#, fuzzy\n")
     entry.msgCtxt match {
       case None =>
-      case Some(c) => cs.write("msgctxt \"_\"\n" << niceString(c))
+      case Some(c) => cs.print("msgctxt \"_\"\n" << niceString(c))
     }
     entry.msgidPlural match {
       case None => emitNeutral

@@ -8,8 +8,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class I18nCatalog(val packageName: String, val sourceRoot: String, val languageCode: String, val countryCode: String = "")
 
-
-class I18nGenerator {
+class I18nGenerator(loggers: Loggers) {
 
   // Constants.
   val PROGRAM_NAME = "i18nGen"
@@ -19,7 +18,7 @@ class I18nGenerator {
   var mergeEnabled = true
   var logEnabled = false
   var country = ""
-    
+
   def log(msg: => String) {
     if (logEnabled)
       println("  - Log: _" << msg)
@@ -82,8 +81,8 @@ class I18nGenerator {
     // and by definition, comments can be any kind of junk, so we need to plan for
     // this.
     val oops = new Exception
-    class TolerantParser(data: String) extends PoReader(data) {
-      override def error(startLineNumber: Int, msg: ErrorParameter) = throw oops
+    class TolerantParser(data: String) extends PoReader(data, loggers) {
+      override def error(startLineNumber: Int, msg: LoggingParameter) = throw oops
       def parse = try recoverEntriesWithSomeTranslations catch {
         case e if (e eq oops) => (None, Nil, Nil)
         case e => Errors.fatal("Unexpected parsing error: _." << e.getMessage)
@@ -104,8 +103,8 @@ class I18nGenerator {
     // "minimalist", as they do not have any translations yet.
     println("  - Scanning source Scala files.")
     val isScalaFile = (f: File) => f.getAbsolutePath.toLowerCase.endsWith(".scala")
-    IO.scanDirectory(new File(packageDirectoryName), isScalaFile)(new ScalaFileReader(_, mergedEntries).scan)
-    
+    IO.scanDirectory(new File(packageDirectoryName), isScalaFile)(new ScalaFileReader(_, mergedEntries, loggers).scan)
+
     // Try exact matches between recovered entries and new entries. The method returns the entries 
     // that did not macthed as obsolete comments.
     val moreObsoleteComments = exactMatch(recoveredEntriesWithTranslations, mergedEntries)
@@ -154,10 +153,10 @@ class I18nGenerator {
 
   def loadPoFile(poFile: File, languageKey: String) = {
 
-    val poFileReader = new PoFileReader(poFile)
-    
+    val poFileReader = new PoFileReader(poFile, loggers)
+
     // Get the entries in the original PO file, along with obsolete comments. 
-    val (possibleHeaderEntry, recoveredEntriesWithTranslations, obsoleteComments) = 
+    val (possibleHeaderEntry, recoveredEntriesWithTranslations, obsoleteComments) =
       poFileReader.recoverEntriesWithSomeTranslations
 
     // Make sure we have a file header
@@ -180,29 +179,28 @@ class I18nGenerator {
     import CommandLine._
     val config = List(
       ValuedSwitch("country", "code", "Two-letter country code (US, FR, CA, ...)", country = _),
-      SimpleSwitch("nomerge", "Only generate a resource class from the Po file", mergeEnabled = false), 
-      SimpleSwitch("log", "Display additional logging information", logEnabled = true), 
+      SimpleSwitch("nomerge", "Only generate a resource class from the Po file", mergeEnabled = false),
+      SimpleSwitch("log", "Display additional logging information", logEnabled = true),
       Parameter("language", "Two-letter language code (en, fr, de, ...)", language = _),
       Parameter("package root", "Path where the package resides (ex: /home/joe/prj)", packageRoot = _),
       Parameter("package name", "Name of the package (ex: com.company.xyz)", packageName = _),
       Parameter("output directory", "Path of the directory where the Scala resource file will be created", outputDirectory = _),
-      Help("A country-neutral resource file is generated when no country code is specified.")
-    )
+      Help("A country-neutral resource file is generated when no country code is specified."))
     new CommandLine(PROGRAM_NAME, config).run(args)
     (language, country, packageRoot, packageName, outputDirectory)
   }
 
   def main(args: Array[String]) {
-    
+
     // Get the command line arguments
     val (language, country, packageRoot, packageName, outputDirectory) = getArguments(args)
-    
+
     run(language, country, packageRoot, packageName, outputDirectory)
   }
-  
+
   def run(language: String, country: String, packageRoot: String, packageName: String, outputDirectory: String): File = {
     // Create the target locale
-    val targetLocale = I18nLocale( language, country)
+    val targetLocale = I18nLocale(language, country)
 
     // Construct the names of files, etc. we need.
     val (languageKey, packageDirectoryName, poFileName, className, resourceFileName) =
@@ -214,41 +212,39 @@ class I18nGenerator {
     // A new PO file is created with default contents if it does not exist.
     val (poFileCreated, poFile) = makePoFile(poFileName, packageName, targetLocale, languageKey)
 
-    if (poFileCreated) {      
+    if (poFileCreated) {
       val f = new File(resourceFileName) // in this case File(resourceFileName) already exists ?
       assert(f.exists())
       f
-    }
-    else {
+    } else {
       // Load the Po file and extract appropriate information from it.
-      val (recoveredEntriesWithTranslations, obsoleteComments, nbPluralForms, pluralForms) = 
+      val (recoveredEntriesWithTranslations, obsoleteComments, nbPluralForms, pluralForms) =
         loadPoFile(poFile, languageKey)
-  
+
       // Get the final entries to be written to the resource file.
       val finalEntries = {
         if (mergeEnabled)
           merge(packageDirectoryName, recoveredEntriesWithTranslations, nbPluralForms, poFile, obsoleteComments)
         else
           recoveredEntriesWithTranslations
-        }.filter(e => !e.fuzzy && e.hasAllTranslations)
-  
+      }.filter(e => !e.fuzzy && e.hasAllTranslations)
+
       // Generate the resource file
       val scalaResourceFile = new File(resourceFileName)
       val resourceFileWriter = new ResourceFileWriter(scalaResourceFile, className, languageKey, nbPluralForms,
-        pluralForms, finalEntries)
+        pluralForms, finalEntries, loggers)
       resourceFileWriter.generateAndClose
       println("  - File _ generated successfully." <<< resourceFileName)
       scalaResourceFile
-    }    
+    }
   }
 }
-
 
 import sbt.Keys._
 import sbt._
 
 object I18nGen extends sbt.Plugin {
-  
+
   def warning(reference: Option[PoReference], message: String) {
     reference match {
       case Some(r) =>
@@ -257,59 +253,4 @@ object I18nGen extends sbt.Plugin {
         System.err.println("Warning: _" <<< message)
     }
   }
-
-  def main(args: Array[String]) {
-    try {
-      val g = new I18nGenerator
-      g.main(args)
-    } 
-    catch {
-      case e: Exception =>
-        scala.Console.err.println("Fatal error: _" << e.getMessage)
-    } 
-  }
-
- def apply(catalogs: I18nCatalog*) = 
-   (sourceGenerators in Compile) <+= (sourceManaged in Compile) map { dir =>      
-      for(c <- catalogs) yield {
-        val g = new I18nGenerator
-        g.run(c.languageCode, c.countryCode, c.sourceRoot, c.packageName, dir.getAbsoluteFile.getCanonicalPath)
-      }
-    }   
-  
-  override lazy val settings = Seq(commands += generatei18n)
-
-  lazy val generatei18n = 
-    Command.command("gen-i18n") { (state: State) =>
-      hardCodeGenerate
-      state
-    }  
-	
-  def hardCodeGenerate {
-
-    val root = net.strong_links.core.IO.currentDirectory.getAbsolutePath
-    val sourceDirectory = root + "/src"
-    val outputDirectoryName = root + "/faw/src/main/generatedCode"
-
-    generateFor(root + "/faw/src/main/scala",  "net.strong_links.scalaforms", outputDirectoryName)
-    generateFor(root + "/faw/src/test/scala",  "net.strong_links.scalaformstests", outputDirectoryName)
-  }
-    
-  def generateFor(sourceDirectory: String, packageName: String, outputDirectoryName: String) {
-    
-    val outputDirectory = file(outputDirectoryName)
-    net.strong_links.core.IO.createDirectory(outputDirectory)
-    
-    val fr = Array("fr", sourceDirectory, packageName, outputDirectoryName)
-    val frCa = fr ++ Array("--country", "CA", "--nomerge")
-    
-    val en = Array("en", sourceDirectory, packageName, outputDirectoryName)
-    val enUk = en ++ Array("--country", "UK", "--nomerge")
-
-    I18nGen.main(enUk)
-    I18nGen.main(fr)
-    I18nGen.main(frCa)
-  }
-  
-  private def file(s: String) = new File(s)
 }

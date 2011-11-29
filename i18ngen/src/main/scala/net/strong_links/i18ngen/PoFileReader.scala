@@ -7,11 +7,11 @@ import scala.collection.mutable.ListBuffer
 
 import LexSymbol._
 
-class PoFileReader(file: File) extends PoReader(IO.loadUtf8TextFile(file)) {
+class PoFileReader(file: File, loggers: Loggers) extends PoReader(IO.loadUtf8TextFile(file), loggers) {
   override def getFileName = Some(file.getAbsolutePath)
 }
 
-class PoReader(data: String) extends LexParser(data) {
+class PoReader(data: String, loggers: Loggers) extends LexParser(data, loggers) {
 
   var emptyMsgidFound = false
   var savedStartLineNumber = 0

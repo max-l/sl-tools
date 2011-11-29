@@ -1,0 +1,5 @@
+[info] Packaging V:\sl-tools\epoxy\target\scala-2.9.1\sbt-0.11.0\epoxy-0.2-sources.jar ...
+[debug] Input file mappings:
+[debug] 	net\strong_links\epoxy\Epoxy.scala
+[debug] 	  V:\sl-tools\epoxy\src\main\scala\net\strong_links\epoxy\Epoxy.scala
+[info] Done packaging.

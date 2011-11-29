@@ -17,7 +17,7 @@ class PoFileWriter (file: File, nbPluralForms: Int, entries: List[PoEntry], back
     }
     
     for (bc <- backupComments)
-      cs.append(bc.value.split("\n").map("#~ " + _).mkString("\n", "\n", "\n"))
+      cs.print(bc.value.split("\n").map("#~ " + _).mkString("\n", "\n", "\n"))
     
     IO.writeUtf8ToFile(file, cs.close)
 

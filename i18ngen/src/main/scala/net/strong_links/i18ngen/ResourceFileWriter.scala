@@ -138,7 +138,7 @@ class TableDef[T <: Any](name: String, data: Array[T], isVar: Boolean) {
 }
 
 class ResourceFileWriter(file: File, className: String, languageKey: String, nbPluralForms: Int, 
-                         pluralForms: String, entries: List[PoEntry]) {
+                         pluralForms: String, entries: List[PoEntry], loggers: Loggers) {
 
   val pw = new CharStream
   
@@ -196,7 +196,7 @@ class ResourceFileWriter(file: File, className: String, languageKey: String, nbP
 
     pw.println(generateStaticCode(now, nbEntries, nbPluralForms, pluralForms))
     
-    val compiler = new PluralFormsCompiler(pluralForms)
+    val compiler = new PluralFormsCompiler(pluralForms, loggers)
     val pluralFormsMethod = compiler.compile
 
     pw.println("  // Compute the required plural form for a given 'n'.")
