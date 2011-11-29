@@ -1,6 +1,0 @@
-[debug] local do not support transaction. ivy pattern does not use revision as a directory
-[info] 	published epoxy to C:\Users\Jacques\.ivy2/local/net.strong_links/epoxy/scala_2.9.1/sbt_0.11.0/0.2/poms/epoxy.pom
-[info] 	published epoxy to C:\Users\Jacques\.ivy2/local/net.strong_links/epoxy/scala_2.9.1/sbt_0.11.0/0.2/jars/epoxy.jar
-[info] 	published epoxy to C:\Users\Jacques\.ivy2/local/net.strong_links/epoxy/scala_2.9.1/sbt_0.11.0/0.2/srcs/epoxy-sources.jar
-[info] 	published epoxy to C:\Users\Jacques\.ivy2/local/net.strong_links/epoxy/scala_2.9.1/sbt_0.11.0/0.2/docs/epoxy-javadoc.jar
-[info] 	published ivy to C:\Users\Jacques\.ivy2/local/net.strong_links/epoxy/scala_2.9.1/sbt_0.11.0/0.2/ivys/ivy.xml
