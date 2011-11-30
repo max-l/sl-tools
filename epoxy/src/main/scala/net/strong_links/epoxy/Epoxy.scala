@@ -46,8 +46,28 @@ object Epoxy {
         etr.flatMap(d => (PathFinder(d) ** "*").get)
       ),
       watchSources <++= (watchedTemplates in Compile).identity,
-      epoxyTask      
+      epoxyTask,
+      (sourceGenerators in Compile) <+= (
+        organization,
+        thisProject,
+        watchedTemplates,
+        epoxyTemplateRoots,
+        (sourceManaged in Compile)) map { (org, proj, t, templateDirs, outDir) =>
+        
+        println("epoxy on : \n" + t.mkString("\n"))
+        println("outDir : " + outDir)
+        println("org : " + org)
+        println("id : " + proj.id)
+        
+        val packageName = org + "." + proj.id + ".templates"
+        //(logger: Logger, inputDirectory: File, outputDirectory: File, rootPackage: Option[String])
+        
+        val res = templateDirs.flatMap(td => SbtTemplateRunner(zis, td, outDir, Some(packageName)))
+
+        println(res.mkString("\n"))
+        
+        res
+      }
     )
   }
-  
 }
