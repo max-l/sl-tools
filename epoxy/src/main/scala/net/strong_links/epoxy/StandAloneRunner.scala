@@ -24,8 +24,8 @@ abstract class StandAloneRunner {
     var rebuild = false
 
     val config = List(
-      Parameter("Input directory", inputDirectoryLabel, id => inputDirectory = Some(new File(id))),
-      Parameter("Output directory", outputDirectoryLabel, od => outputDirectory = Some(new File(od))),
+      Parameter("input directory", inputDirectoryLabel, id => inputDirectory = Some(new File(id))),
+      Parameter("output directory", outputDirectoryLabel, od => outputDirectory = Some(new File(od))),
       SimpleSwitch("rebuild", "Always rebuild all output files.", rebuild = true),
       SimpleSwitch("stackTrace", "Show stack trace upon error.", stackTrace = true),
       SimpleSwitch("debug", "Show debug log entries.", logger.enableDebug = true),
