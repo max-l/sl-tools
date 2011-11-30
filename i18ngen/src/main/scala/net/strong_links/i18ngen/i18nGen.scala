@@ -8,7 +8,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class I18nCatalog(val packageName: String, val sourceRoot: String, val languageCode: String, val countryCode: String = "")
 
-class I18nGenerator(logger: Logger) {
+class I18nGenerator(logger: Xlogger) {
 
   // Constants.
   val PROGRAM_NAME = "i18nGen"
@@ -97,7 +97,7 @@ class I18nGenerator(logger: Logger) {
     nbPluralForms: Int, poFile: File, obsoleteComments: List[PoComment]) = {
 
     // Create a container for the Po entries that will be merged.
-    val mergedEntries = new PoEntryBag
+    val mergedEntries = new PoEntryBag(logger)
 
     // Scan the Scala source files, extracting the mergeable I18n entries. These entries here are
     // "minimalist", as they do not have any translations yet.
@@ -236,21 +236,6 @@ class I18nGenerator(logger: Logger) {
       resourceFileWriter.generateAndClose
       println("  - File _ generated successfully." <<< resourceFileName)
       scalaResourceFile
-    }
-  }
-}
-
-import sbt.Keys._
-import sbt._
-
-object I18nGen extends sbt.Plugin {
-
-  def warning(reference: Option[PoReference], message: String) {
-    reference match {
-      case Some(r) =>
-        System.err.println("Warning in file _, line _: _" <<< (r.absolutePath, r.lineNumber, message))
-      case None =>
-        System.err.println("Warning: _" <<< message)
     }
   }
 }

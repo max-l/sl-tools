@@ -4,7 +4,7 @@ import net.strong_links.core._
 
 import java.io.File
 
-class ResourceScanner(logger: Logger) extends EpoxyScanner(logger) {
+class ResourceScanner(logger: Xlogger) extends EpoxyScanner(logger) {
 
   var stackTrace = false
 

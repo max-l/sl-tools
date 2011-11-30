@@ -4,9 +4,7 @@ import net.strong_links.core._
 
 import java.io.File
 
-import SbtInterface._
-
-class TemplateScanner(logger: Logger) extends EpoxyScanner(logger) {
+class TemplateScanner(logger: Xlogger) extends EpoxyScanner(logger) {
 
   var stackTrace = false
 

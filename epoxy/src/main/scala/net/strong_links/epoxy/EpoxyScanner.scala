@@ -4,7 +4,7 @@ import net.strong_links.core._
 
 import java.io.File
 
-abstract class EpoxyScanner(logger: Logger) {
+abstract class EpoxyScanner(logger: Xlogger) {
 
   var hasError = false
 

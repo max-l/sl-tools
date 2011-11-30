@@ -16,7 +16,7 @@ abstract class StandAloneRunner {
 
   var stackTrace = false
 
-  def execute(logger: StandAloneLogger, args: Array[String])(scannerCreator: ScannerCreator) = {
+  def execute(logger: Xlogger, args: Array[String])(scannerCreator: ScannerCreator) = {
 
     var inputDirectory: Option[File] = None
     var outputDirectory: Option[File] = None
@@ -48,7 +48,7 @@ abstract class StandAloneRunner {
     object logger extends StandAloneLogger
 
     try
-      execute(logger, args)(scannerCreator)
+      execute(new Xlogger(logger), args)(scannerCreator)
     catch {
       case e: Exception =>
         if (stackTrace)

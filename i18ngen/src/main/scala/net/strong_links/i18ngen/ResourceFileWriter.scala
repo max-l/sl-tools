@@ -138,7 +138,7 @@ class TableDef[T <: Any](name: String, data: Array[T], isVar: Boolean) {
 }
 
 class ResourceFileWriter(file: File, className: String, languageKey: String, nbPluralForms: Int, 
-                         pluralForms: String, entries: List[PoEntry], loggers: Logger) {
+                         pluralForms: String, entries: List[PoEntry], loggers: Xlogger) {
 
   val pw = new CharStream
   
