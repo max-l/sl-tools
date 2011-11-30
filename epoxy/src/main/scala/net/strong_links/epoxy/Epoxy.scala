@@ -8,66 +8,61 @@ import sbt.Keys._
 object Epoxy {
   
   
-  def zis: net.strong_links.core.Logger = new {
-    def debug(msg: String): Unit = println(msg)
-    def info(msg: String): Unit = println(msg)
-    def warning(msg: String): Unit = println(msg)
-    def error(msg: String): Unit =  println(msg)
+  private def wrapSbtLogger(sbtLogger: sbt.Logger): net.strong_links.core.Logger = new {
+    def debug(msg: String): Unit = sbtLogger.debug(msg)
+    def info(msg: String): Unit = sbtLogger.info(msg)
+    def warning(msg: String): Unit = sbtLogger.warn(msg)
+    def error(msg: String): Unit =  sbtLogger.error(msg)
   }
 
   
   val epoxyTemplateRoots = TaskKey[Seq[File]]("epoxy-template-root-directories")
     
-  val watchedTemplates = TaskKey[Seq[File]]("epoxy-watched-templates")
+  val epoxyResourceRoots = TaskKey[Seq[File]]("epoxy-resource-root-directories")
+
+  private val watchedTemplates = TaskKey[Seq[File]]("epoxy-watched-templates")
+        
+  private val watchedResources = TaskKey[Seq[File]]("epoxy-watched-resources")
+
+  
+  private def defineEpoxyTask(forCompile: Boolean) = (
+        streams,
+        organization,
+        thisProject,
+        watchedTemplates,
+        watchedResources,
+        epoxyTemplateRoots,
+        epoxyResourceRoots,
+        (sourceManaged in Compile)) map { (streams, org, proj, wt, wr, templateDirs, resourceDirs, outDir) =>
+
+      val res1 = templateDirs.flatMap(td => SbtTemplateRunner(wrapSbtLogger(streams.log), td, outDir, Some(org + "." + proj.id + ".templates")))
+      val res2 = resourceDirs.flatMap(rd => SbtResourceRunner(wrapSbtLogger(streams.log), rd, outDir, Some(org + "." + proj.id + ".resources")))
+
+      if(forCompile)
+        res1 ++ res2
+      else
+        wt ++ wr
+    }
+
     
   def init = {      
       
-    val epoxyTask = (TaskKey[Seq[File]]("epoxy") in Compile) <<= (
-        organization,
-        thisProject,
-        watchedTemplates,
-        epoxyTemplateRoots,
-        (sourceManaged in Compile)) map { (org, proj, t, templateDirs, outDir) =>
-      
-      println("epoxy on : \n" + t.mkString("\n"))
-      println("outDir : " + outDir)
-      println("org : " + org)
-      println("id : " + proj.id)
-      
-      val packageName = org + "." + proj.id + ".templates"
-      //(logger: Logger, inputDirectory: File, outputDirectory: File, rootPackage: Option[String])
-      
-      templateDirs.flatMap(td => SbtTemplateRunner(zis, td, outDir, Some(packageName)))
-      t      
-    }
-      
+    val epoxyTask = (TaskKey[Seq[File]]("epoxy") in Compile) <<= defineEpoxyTask(false)
+    val emptyFileSeqTask = (sourceDirectories) map(d => Nil : Seq[File])
+    
     Seq(
-      watchedTemplates  <<= (epoxyTemplateRoots).map(etr => 
+      //(epoxyTemplateRoots) <++= emptyFileSeqTask,
+      //(epoxyResourceRoots) <++= emptyFileSeqTask,      
+      watchedTemplates  <<= (epoxyTemplateRoots in Compile).map(etr => 
         etr.flatMap(d => (PathFinder(d) ** "*").get)
       ),
-      watchSources <++= (watchedTemplates in Compile).identity,
+      watchedResources  <<= (epoxyResourceRoots in Compile).map(err => 
+        err.flatMap(d => (PathFinder(d) ** "*").get)        
+      ),
+      watchSources <++= (watchedTemplates in Compile),
+      watchSources <++= (watchedResources in Compile),
       epoxyTask,
-      (sourceGenerators in Compile) <+= (
-        organization,
-        thisProject,
-        watchedTemplates,
-        epoxyTemplateRoots,
-        (sourceManaged in Compile)) map { (org, proj, t, templateDirs, outDir) =>
-        
-        println("epoxy on : \n" + t.mkString("\n"))
-        println("outDir : " + outDir)
-        println("org : " + org)
-        println("id : " + proj.id)
-        
-        val packageName = org + "." + proj.id + ".templates"
-        //(logger: Logger, inputDirectory: File, outputDirectory: File, rootPackage: Option[String])
-        
-        val res = templateDirs.flatMap(td => SbtTemplateRunner(zis, td, outDir, Some(packageName)))
-
-        println(res.mkString("\n"))
-        
-        res
-      }
+      (sourceGenerators in Compile) <+= defineEpoxyTask(true)
     )
   }
 }
