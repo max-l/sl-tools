@@ -4,7 +4,7 @@ import net.strong_links.core._
 
 import java.io.File
 
-class TemplateScanner(logger: Logger) extends EpoxyScanner(logger) {
+class TemplateScanner(logger: Xlogger) extends EpoxyScanner(logger) {
 
   var stackTrace = false
 
@@ -17,7 +17,7 @@ class TemplateScanner(logger: Logger) extends EpoxyScanner(logger) {
       val imports = List("net.strong_links.core._", "net.strong_links.core.Convert._",
         "net.strong_links.scalaforms.BaseField", "net.strong_links.scalaforms.OutStream",
         "net.strong_links.scalaforms.fieldTransformer", <a/>.getClass.getCanonicalName)
-      generateScalaFile(entries, outputFile, file, masterPackageName, packageName, className, objectName, imports)(_.code)
+      generateScalaFile(entries, outputFile, file, masterPackageName, packageName, className, objectName, true, imports)(_.code)
     }
   }
 

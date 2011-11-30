@@ -6,6 +6,6 @@ import java.io.File
 
 object SbtResourceRunner {
   def apply(logger: Logger, inputDirectory: File, outputDirectory: File, rootPackage: Option[String]) = {
-    new ResourceScanner(logger).run(inputDirectory, outputDirectory, rootPackage, false)
+    new ResourceScanner(new Xlogger(logger)).run(inputDirectory, outputDirectory, rootPackage, false)
   }
 }

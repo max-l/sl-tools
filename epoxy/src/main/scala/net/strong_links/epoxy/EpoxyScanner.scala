@@ -4,7 +4,7 @@ import net.strong_links.core._
 
 import java.io.File
 
-abstract class EpoxyScanner(logger: Logger) {
+abstract class EpoxyScanner(logger: Xlogger) {
 
   var hasError = false
 
@@ -57,8 +57,12 @@ abstract class EpoxyScanner(logger: Logger) {
   }
 
   def generateScalaFile[T](entries: Seq[T], outputFile: File, sourceFile: File,
-    masterPackageName: String, packageName: String, className: String, objectName: String, imports: List[String])(code: T => String) {
+    masterPackageName: String, packageName: String, className: String, objectName: String, objectIsInside: Boolean, imports: List[String])(code: T => String) {
     val cs = new LeveledCharStream
+    def genObjectIf(b: Boolean) = if (b) {
+      cs.println
+      cs.println("package object _ extends _._._" << (objectName, masterPackageName, packageName, className))
+    }
     header(cs, sourceFile.getCanonicalPath, outputFile.getCanonicalPath)
     cs.block("package _" << masterPackageName) {
       if (!imports.isEmpty) {
@@ -70,9 +74,9 @@ abstract class EpoxyScanner(logger: Logger) {
         cs.block("class _" << className) {
           entries.foreach(e => cs.println(code(e)))
         }
+        genObjectIf(objectIsInside)
       }
-      cs.println
-      cs.println("package object _ extends _._._" << (objectName, masterPackageName, packageName, className))
+      genObjectIf(!objectIsInside)
     }
     IO.createDirectory(outputFile.getParentFile, true)
     IO.writeUtf8ToFile(outputFile, cs.close)

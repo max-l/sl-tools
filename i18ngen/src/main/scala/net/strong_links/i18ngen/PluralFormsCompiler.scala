@@ -4,7 +4,7 @@ import net.strong_links.core._
 
 import LexSymbol._
 
-class PluralFormsCompiler(data: String, logger: Logger) extends LexParser(data, logger) {
+class PluralFormsCompiler(data: String, logger: Xlogger) extends LexParser(data, logger) {
   val output = scala.collection.mutable.ListBuffer[String]()
   var stackLevel = -1
   val allocatedRegisters = scala.collection.mutable.Set[Int]()

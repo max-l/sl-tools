@@ -4,7 +4,7 @@ import net.strong_links.core._
 
 import java.io.File
 
-class ResourceScanner(logger: Logger) extends EpoxyScanner(logger) {
+class ResourceScanner(logger: Xlogger) extends EpoxyScanner(logger) {
 
   var stackTrace = false
 
@@ -76,7 +76,7 @@ class ResourceScanner(logger: Logger) extends EpoxyScanner(logger) {
 
     if (generate) {
       logger.debug("Generating new file _." <<< outputFile.getCanonicalPath)
-      generateScalaFile(entries, outputFile, directory, masterPackageName, packageName, className, objectName, Nil) { e =>
+      generateScalaFile(entries, outputFile, directory, masterPackageName, packageName, className, objectName, false, Nil) { e =>
         val cs = new LeveledCharStream
         cs.println("def _ = {" << e.makeFunctionName(directory))
         cs.increaseLevel

@@ -6,6 +6,6 @@ import java.io.File
 
 object SbtTemplateRunner {
   def apply(logger: Logger, inputDirectory: File, outputDirectory: File, rootPackage: Option[String]) = {
-    new TemplateScanner(logger).run(inputDirectory, outputDirectory, rootPackage, false)
+    new TemplateScanner(new Xlogger(logger)).run(inputDirectory, outputDirectory, rootPackage, false)
   }
 }
