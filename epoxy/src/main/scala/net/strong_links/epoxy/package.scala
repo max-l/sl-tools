@@ -18,18 +18,4 @@ package object epoxy {
       Errors.fatal("No dot found in _." << c.getName)
     segments.last
   }
-
-  def normalizeName(name: String, context: => LoggingParameter) = {
-    def cleanUnderscores(s: String): String = if (!s.contains("__")) s else cleanUnderscores(s.replace("__", "_"))
-    val x = cleanUnderscores(Convert.generic(name.toLowerCase, None) {
-      case c if c.isLetterOrDigit => null
-      case _ => "_"
-    })
-    if (x.length == 0)
-      Errors.fatal("Can't generate a normalized name for _" << name, context)
-    if (x(0).isLetter)
-      x
-    else
-      "_" + x
-  }
 }

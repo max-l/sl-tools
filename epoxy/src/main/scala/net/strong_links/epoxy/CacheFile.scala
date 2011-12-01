@@ -42,9 +42,7 @@ class FileInfo(val name: String, val uuid: String, val lastModified: Long) {
   }
 
   def makeFunctionName(directory: File) = {
-    normalizeName(name, "File _ located in directory _." << (name, directory.getCanonicalPath))
+    Lex.normalizeName(name, "File _ located in directory _." << (name, directory.getCanonicalPath))
   }
 }
-
-
 

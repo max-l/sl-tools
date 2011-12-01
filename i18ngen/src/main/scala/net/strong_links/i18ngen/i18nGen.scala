@@ -90,7 +90,6 @@ class I18nGenerator(logger: Xlogger) {
 
     // Scan the Scala source files, extracting the mergeable I18n entries. These entries here are
     // "minimalist", as they do not have any translations yet.
-    println("  - Scanning source Scala files.")
     val isScalaFile = (f: File) => f.getAbsolutePath.toLowerCase.endsWith(".scala")
     IO.scanDirectory(inputDirectory, isScalaFile)(new ScalaFileReader(_, mergedEntries, logger).scan)
 
@@ -163,7 +162,10 @@ class I18nGenerator(logger: Xlogger) {
     (recoveredEntriesWithTranslations, obsoleteComments, nbPluralForms, pluralForms)
   }
 
-  def run(targetLocale: Locale, packageName: String, inputDirectory: File, outputDirectory: File, mergeEnabled: Boolean): File = {
+  def run(targetLocale: Locale, packageName: String, inputDirectory: File, outputDirectory: File, pSearchNewI18n: Boolean): File = {
+
+    // Ensure that we never search for new I18n strings when dealing with specific countries, this would be OTT.
+    val searchNewI18n = if (targetLocale.getCountry == "") false else pSearchNewI18n
 
     // Ensure input and output directories exist.
     IO.checkForExistingDirectory(inputDirectory)
@@ -190,7 +192,7 @@ class I18nGenerator(logger: Xlogger) {
 
       // Get the final entries to be written to the resource file.
       val finalEntries = {
-        if (mergeEnabled)
+        if (searchNewI18n)
           merge(inputDirectory, recoveredEntriesWithTranslations, nbPluralForms, poFile, obsoleteComments)
         else
           recoveredEntriesWithTranslations
@@ -201,8 +203,20 @@ class I18nGenerator(logger: Xlogger) {
       val resourceFileWriter = new ResourceFileWriter(scalaResourceFile, className, languageKey, nbPluralForms,
         pluralForms, finalEntries, logger)
       resourceFileWriter.generateAndClose
-      println("  - File _ generated successfully." <<< resourceFileName)
+      logger.debug("File _ generated successfully." <<< resourceFileName)
       scalaResourceFile
     }
+  }
+}
+
+object I18ngen {
+
+  def run(logger: Xlogger, localizations: List[I18nLocalization], packageName: String, inputDirectory: File, outputDirectory: File) = {
+    val filesCreated = new scala.collection.mutable.ListBuffer[File]
+    localizations.foreach {
+      val g = new I18nGenerator(logger)
+      localization => filesCreated += g.run(localization.locale, packageName, inputDirectory, outputDirectory, localization.parent == None)
+    }
+    filesCreated.toList
   }
 }
