@@ -4,7 +4,7 @@ import net.strong_links.core._
 
 import java.io.File
 
-object I18ngenStandAloneRunner {
+object I18ngenStandAloneConfiguration {
 
   import CommandLine._
 
@@ -12,7 +12,7 @@ object I18ngenStandAloneRunner {
 
   def execute(logger: Xlogger, args: Array[String]) {
 
-    val programName = "I18ngenStandAloneRunner"
+    val programName = "I18ngenStandAloneConfiguration"
     var localizationsList: Option[String] = None
     var packageName: Option[String] = None
     var inputDirectory: Option[File] = None

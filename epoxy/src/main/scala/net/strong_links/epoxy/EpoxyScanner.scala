@@ -32,13 +32,13 @@ abstract class EpoxyScanner(logger: Xlogger) {
       (file.getCanonicalPath, inputDirectory.getCanonicalPath, rootPackage)
     try {
       val partialPath = file.getCanonicalPath.substring(inputDirectory.getCanonicalPath.length)
-      val segments = partialPath.split(IO.dirSeparator(0)).toList.filter(!_.isEmpty).map(normalizeName(_, ctx))
+      val segments = partialPath.split(IO.dirSeparator(0)).toList.filter(!_.isEmpty).map(Lex.normalizeName(_, ctx))
       if (segments.isEmpty)
         Errors.fatal(ctx, "No segments found in relative path _." << partialPath)
       val results = rootPackage match {
         case None => segments
         case Some(rp) =>
-          val leadingSegments = if (rp.contains(".")) rp.split('.').toList else List(rp)
+          val leadingSegments = (if (rp.contains(".")) rp.split('.').toList else List(rp)).map(Lex.normalizeName(_, ctx))
           leadingSegments ::: segments
       }
       if (results.length < 2)
@@ -53,7 +53,7 @@ abstract class EpoxyScanner(logger: Xlogger) {
     val segments = file.getName.split('.').filter(!_.isEmpty)
     if (segments.length < 2)
       Errors.fatal("Invalid file name _." << file.getCanonicalPath)
-    normalizeName(segments.dropRight(1).mkString, "File name _" << file.getCanonicalPath)
+    Lex.normalizeName(segments.dropRight(1).mkString, "File name _" << file.getCanonicalPath)
   }
 
   def generateScalaFile[T](entries: Seq[T], outputFile: File, sourceFile: File,
