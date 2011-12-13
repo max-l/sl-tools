@@ -1,10 +1,10 @@
 package net.strong_links.i18ngen
 
 import net.strong_links.core._
-  
+
 import java.io.File
 
-class PoFileWriter (file: File, nbPluralForms: Int, entries: List[PoEntry], backupComments: List[PoComment]) {
+class PoFileWriter(file: File, nbPluralForms: Int, entries: List[PoEntry], backupComments: List[PoComment]) {
 
   private val cs = new CharStream
 
@@ -15,10 +15,10 @@ class PoFileWriter (file: File, nbPluralForms: Int, entries: List[PoEntry], back
       if (e.translations == Nil)
         missingTranslations += 1
     }
-    
+
     for (bc <- backupComments)
-      cs.print(bc.value.split("\n").map("#~ " + _).mkString("\n", "\n", "\n"))
-    
+      cs.print(Util.split(bc.value).map("#~ " + _).mkString("\n", "\n", "\n"))
+
     IO.writeUtf8ToFile(file, cs.close)
 
     if (missingTranslations == 1)

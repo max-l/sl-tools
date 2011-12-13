@@ -12,10 +12,5 @@ package object epoxy {
   val T_GENERAL_STRING = nameOf(classOf[GeneralString])
   val T_XML = nameOf(<a/>.getClass)
 
-  def nameOf(c: Class[_]) = {
-    val segments = c.getName.split('.')
-    if (segments.isEmpty)
-      Errors.fatal("No dot found in _." << c.getName)
-    segments.last
-  }
+  def nameOf(c: Class[_]) = Util.split(c.getName, '.').last
 }

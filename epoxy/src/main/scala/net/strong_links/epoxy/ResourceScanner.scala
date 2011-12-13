@@ -13,13 +13,13 @@ class ResourceScanner(logger: Xlogger) extends EpoxyScanner(logger) {
       if (!resCompCacheFile.isFile)
         Errors.fatal("File _ is not a file." << resCompCacheFile.getCanonicalPath)
       val data = IO.loadUtf8TextFile(resCompCacheFile).replace("\r\n", "\n")
-      for (line <- data.split('\n').toList.zipWithIndex.filter(!_._1.isEmpty))
+      for (line <- Util.split(data).zipWithIndex.filter(!_._1.isEmpty))
         yield FileInfo(resCompCacheFile, line._1, line._2 + 1)
     } else
       Nil
   }
 
-  def processFiles(files: List[File], resCompCacheFile: File, directory: File, inputDirectory: File, outputDirectory: File, rootPackage: Option[String], rebuild: Boolean): Option[File] = {
+  def processFiles(files: List[File], resCompCacheFile: File, directory: File, inputDirectory: File, outputDirectory: File, rootPackage: String, rebuild: Boolean): File = {
     val segments = computePackageNameSegments(directory, inputDirectory, rootPackage)
     val fullPackageName = segments.mkString(".")
     val masterPackageSegments = segments.dropRight(1)
@@ -58,7 +58,7 @@ class ResourceScanner(logger: Xlogger) extends EpoxyScanner(logger) {
 
     val recycledEntries = recycledMap.values.toList
     val newEntries = newMap.values.toList
-    
+
     val entries = (recycledEntries ::: newEntries).sortWith(_.name < _.name)
 
     if (reuseCacheFile) {
@@ -76,7 +76,7 @@ class ResourceScanner(logger: Xlogger) extends EpoxyScanner(logger) {
 
     if (generate) {
       logger.debug("Generating new file _." <<< outputFile.getCanonicalPath)
-      generateScalaFile(entries, outputFile, directory, masterPackageName, packageName, className, objectName, false, Nil) { e =>
+      CodeGeneration.generateScalaFile(entries, outputFile, directory, masterPackageName, packageName, className, objectName, false, Nil) { e =>
         val cs = new LeveledCharStream
         cs.println("def _ = {" << e.makeFunctionName(directory))
         cs.increaseLevel
@@ -86,14 +86,12 @@ class ResourceScanner(logger: Xlogger) extends EpoxyScanner(logger) {
         cs.println("}")
         cs.close
       }
-      Some(outputFile)
-    } else {
+    } else
       logger.debug("File _ is up-to-date." <<< outputFile.getCanonicalPath)
-      None
-    }
+    outputFile
   }
 
-  def process(directory: File, inputDirectory: File, outputDirectory: File, rootPackage: Option[String], rebuild: Boolean): Option[File] = {
+  def process(directory: File, inputDirectory: File, outputDirectory: File, rootPackage: String, rebuild: Boolean): Option[File] = {
 
     val resCompCacheFileName = "rescomp.cache"
     val resCompCacheFullFileName = directory.getCanonicalPath + IO.dirSeparator + resCompCacheFileName
@@ -102,8 +100,7 @@ class ResourceScanner(logger: Xlogger) extends EpoxyScanner(logger) {
     // Check if there are files in this directory.
     val files = directory.listFiles.toList.filter(_.isFile).filter(_.getName != resCompCacheFileName)
 
-    logger.debug("Processing directory: _" <<< directory.getCanonicalPath)
-    logger.debug("Number of files: _" <<< files.length)
+    logger.info("Processing directory _" <<< directory.getCanonicalPath)
 
     if (files.isEmpty) {
       logger.debug("Directory empty, deleting _ if it exists." <<< resCompCacheFile.getCanonicalPath)
@@ -111,7 +108,7 @@ class ResourceScanner(logger: Xlogger) extends EpoxyScanner(logger) {
       None
     } else {
       logger.debug("Directory not empty, processing files.")
-      processFiles(files, resCompCacheFile, directory, inputDirectory, outputDirectory, rootPackage, rebuild)
+      Some(processFiles(files, resCompCacheFile, directory, inputDirectory, outputDirectory, rootPackage, rebuild))
     }
   }
 

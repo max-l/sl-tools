@@ -7,6 +7,10 @@ project/plugins/project/*
 /*/target/*
 
 
+# Scalaforms ignores :
+
+rescomp.cache
+
 # Scala-IDE ignores :
 
 .scala_dependencies

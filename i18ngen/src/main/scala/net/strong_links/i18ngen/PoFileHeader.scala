@@ -5,7 +5,7 @@ import net.strong_links.core._
 object PoFileHeader {
 
   def error(msg: String) = {
-    Errors.fatal(("Invalid Po file header: _." << msg).format(true, false))    
+    Errors.fatal(("Invalid Po file header: _." << msg).format(true, false))
   }
 
   def makeDefault(language: String, languageKey: String, packageName: String) = {
@@ -15,7 +15,7 @@ object PoFileHeader {
       case "fr" => "nplurals=2; plural=(n <= 1) ? 0 : 1"
       case _ => "nplurals=???; plural=???"; ok = false
     }
-    val fileContents  =
+    val fileContents =
       """|msgid ""
          |msgstr ""
          |"Project-Id-Version: _\n"
@@ -38,7 +38,7 @@ class PoSplitter(s: String, splitWith: Char, subSplitWith: Char) {
 
   private val m = scala.collection.mutable.Map[String, String]()
 
-  for (segment <- s.split(splitWith)) {
+  for (segment <- Util.split(s, splitWith)) {
     val (segmentName, segmentValue) = splitAt(segment, subSplitWith, "segment _" <<< segment)
     if (m.contains(segmentName))
       PoFileHeader.error("duplicate _ found" <<< segmentName)
@@ -54,7 +54,7 @@ class PoSplitter(s: String, splitWith: Char, subSplitWith: Char) {
     }
     val pos = s.indexOf(at)
     if (pos == -1)
-        error("separator _ not found; _" <<< (at, context))
+      error("separator _ not found; _" <<< (at, context))
     val name = s.substring(0, pos)
     val value = s.substring(pos + 1)
     (clean(name), clean(value))
@@ -77,9 +77,9 @@ class PoFileHeader(entry: PoEntry, languageKey: String) {
     error("_ translations found while one was expected" <<< entry.translations.length)
 
   val s = new PoSplitter(entry.translations.head.replace("\\n", "\uFFFF"), '\uFFFF', ':')
- 
+
   private val foundLanguageKey = s.get("Language")
-  if (foundLanguageKey != languageKey)  
+  if (foundLanguageKey != languageKey)
     error("found language key _ while _ was expected" <<< (foundLanguageKey, languageKey))
 
   def getPluralInformation = {

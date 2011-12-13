@@ -17,11 +17,11 @@ class TemplateScanner(logger: Xlogger) extends EpoxyScanner(logger) {
       val imports = List("net.strong_links.core._", "net.strong_links.core.Convert._",
         "net.strong_links.scalaforms.BaseField", "net.strong_links.scalaforms.OutStream",
         "net.strong_links.scalaforms.fieldTransformer", <a/>.getClass.getCanonicalName)
-      generateScalaFile(entries, outputFile, file, masterPackageName, packageName, className, objectName, true, imports)(_.code)
+      CodeGeneration.generateScalaFile(entries, outputFile, file, masterPackageName, packageName, className, objectName, true, imports)(_.code)
     }
   }
 
-  def process(file: File, inputDirectory: File, outputDirectory: File, rootPackage: Option[String], rebuild: Boolean) = {
+  def process(file: File, inputDirectory: File, outputDirectory: File, rootPackage: String, rebuild: Boolean) = {
     val segments = computePackageNameSegments(file.getParentFile, inputDirectory, rootPackage)
     val fullPackageName = segments.mkString(".")
     val masterPackageSegments = segments.dropRight(1)
@@ -64,7 +64,7 @@ class TemplateScanner(logger: Xlogger) extends EpoxyScanner(logger) {
       }
     } else {
       logger.debug("File _ is up-to-date." <<< outputFile.getCanonicalPath)
-      None
+      Some(outputFile)
     }
   }
 

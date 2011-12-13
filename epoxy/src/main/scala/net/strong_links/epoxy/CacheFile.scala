@@ -15,7 +15,7 @@ object FileInfo {
       val e = "Invalid data found in file _, line _" << (file.getCanonicalPath, lineNumber)
       Errors.fatal(List(e: LoggingParameter) ::: what.toList: _*)
     }
-    val segments = line.split('\t')
+    val segments = Util.split(line, "\t")
     if (segments.length != 3)
       error("_ segments found, but 3 were expected" << segments.length)
     val lastModified = try segments(2).toLong catch {
@@ -41,8 +41,8 @@ class FileInfo(val name: String, val uuid: String, val lastModified: Long) {
     toFullName(name, uuid)
   }
 
-  def makeFunctionName(directory: File) = {
-    Lex.normalizeName(name, "File _ located in directory _." << (name, directory.getCanonicalPath))
+  def makeFunctionName(directory: File) = Errors.context("File _ located in directory _." << (name, directory.getCanonicalPath)) {
+    Lex.normalizeName(name)
   }
 }
 
