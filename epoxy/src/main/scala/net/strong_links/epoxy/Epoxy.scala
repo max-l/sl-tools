@@ -44,15 +44,16 @@ object Epoxy {
   def init = {
 
     val epoxyTask = (TaskKey[Seq[File]]("epoxy") in Compile) <<= defineEpoxyTask(false)
-    val emptyFileSeqTask = (sourceDirectories) map (d => Nil: Seq[File])
-
+    
     Seq(
-      //(epoxyTemplateRoots) <++= emptyFileSeqTask,
-      //(epoxyResourceRoots) <++= emptyFileSeqTask,      
-      watchedTemplates <<= (epoxyTemplateRoots in Compile).map(etr =>
-        etr.flatMap(d => (PathFinder(d) ** "*").get)),
-      watchedResources <<= (epoxyResourceRoots in Compile).map(err =>
-        err.flatMap(d => (PathFinder(d) ** "*").get)),
+      (epoxyTemplateRoots) <<= sourceDirectory.map(src =>  Nil: Seq[File]),
+      (epoxyResourceRoots) <<= sourceDirectory.map(src =>  Nil: Seq[File]),      
+      watchedTemplates  <<= (epoxyTemplateRoots in Compile).map(etr => 
+        etr.flatMap(d => (PathFinder(d) ** "*").get)
+      ),
+      watchedResources  <<= (epoxyResourceRoots in Compile).map(err => 
+        err.flatMap(d => (PathFinder(d) ** "*").get)        
+      ),
       watchSources <++= (watchedTemplates in Compile),
       watchSources <++= (watchedResources in Compile),
       epoxyTask,

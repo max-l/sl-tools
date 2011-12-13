@@ -13,13 +13,15 @@ object Buildz extends Build {
     scalaVersion := "2.9.1",
     logLevel := Level.Warn,
     sbtPlugin := true,
+    logLevel in Global := Level.Warn,
+    publishArtifact in packageDoc := false,
 	  libraryDependencies ++= Seq(core)
-  )      
+  )
 	
   lazy val root = Project(
     id = "root",
     base = file("."),
-	settings = buildSettings
+	  settings = buildSettings
   ) aggregate(epoxy, i18ngen)
   
   
