@@ -7,24 +7,24 @@ import scala.collection.mutable.ListBuffer
 
 import LexSymbol._
 
-class PoFileReader(file: File, logger: Xlogger) extends PoReader(IO.loadUtf8TextFile(file), logger) {
-  override def getFileName = Some(file.getAbsolutePath)
+class PoFileReader(file: File) extends PoReader(IO.loadUtf8TextFile(file)) {
+  override def parse = Errors.trap("PO file _" << file) {
+    super.parse
+  }
 }
 
-class PoReader(data: String, logger: Xlogger) extends LexParser(data, logger) {
+class PoReader(data: String) extends LexParser(data) {
 
   var emptyMsgidFound = false
-  var savedStartLineNumber = 0
-  
   val comments = new PoCommentBag
   val obsoleteComments = new CommentBag
-  
-  def isAutomatedComment(s: String) = 
-    s.startsWith("#.") ||   // Comment extracted from Scala files 
-    s.startsWith("#:") ||   // Source code reference
-    s.startsWith("#,") ||   // Flag
-    s.startsWith("#|") ||   // Previous msgid 
-    s.startsWith("#~")      // Entries no longer used
+
+  def isAutomatedComment(s: String) =
+    s.startsWith("#.") || // Comment extracted from Scala files 
+      s.startsWith("#:") || // Source code reference
+      s.startsWith("#,") || // Flag
+      s.startsWith("#|") || // Previous msgid 
+      s.startsWith("#~") // Entries no longer used
 
   def processComment {
     if (symbolValue.startsWith("#, fuzzy"))
@@ -32,17 +32,17 @@ class PoReader(data: String, logger: Xlogger) extends LexParser(data, logger) {
     if (!isAutomatedComment(symbolValue))
       comments.add(new TranslatorPoComment(symbolValue.substring(1)))
     if (symbolValue.startsWith("#~")) {
-	  val sb = new StringBuilder
-	  var done = false
-	  while (!done) {
-	    sb.append(symbolValue.substring(2).trim)
-	    sb.append("\n")
-	    done = !(currentChar == '#' && nextChar == '~')
-	    super.getSymbol
-	  }  
-	  obsoleteComments.add(new ObsoletePoComment(sb.toString))
-	} else
-	  super.getSymbol
+      val sb = new StringBuilder
+      var done = false
+      while (!done) {
+        sb.append(symbolValue.substring(2).trim)
+        sb.append("\n")
+        done = !(currentChar == '#' && nextChar == '~')
+        super.getSymbol
+      }
+      obsoleteComments.add(new ObsoletePoComment(sb.toString))
+    } else
+      super.getSymbol
   }
 
   override def getSymbol {
@@ -50,7 +50,7 @@ class PoReader(data: String, logger: Xlogger) extends LexParser(data, logger) {
     while (symbol == poLineComments)
       processComment
   }
-  
+
   def eatWhen(sym: LexSymbol) = {
     if (symbol == sym) {
       getSymbol
@@ -71,9 +71,8 @@ class PoReader(data: String, logger: Xlogger) extends LexParser(data, logger) {
       s
   }
 
-  def recoverEntry: PoEntry = {
+  private def recoverEntry: PoEntry = {
     val (fuzzy, accumulatedComments) = comments.obtainWithFuzzyAndClear
-    savedStartLineNumber = startLineNumber
     val msgCtxt = eatWhen(msgctxt)
     skip(msgid)
     val msgidValue = eatString
@@ -96,20 +95,20 @@ class PoReader(data: String, logger: Xlogger) extends LexParser(data, logger) {
           0
         }
       if (currentIndex != lastIndex + 1)
-        error(savedStartLineNumber, "Expected index of translated message to be _, but got _." << (lastIndex + 1, currentIndex))
+        Errors.fatal("Expected index of translated message to be _, but got _." << (lastIndex + 1, currentIndex))
       lastIndex = currentIndex
       val t = eatString
       translations += t
     } while (symbol == msgstr)
     if (msgid == "") {
       if (emptyMsgidFound)
-        error(savedStartLineNumber, "More than one empty 'msgid' found in the Po file.")
+        Errors.fatal("More than one empty 'msgid' found in the Po file.")
       emptyMsgidFound = true
     }
     new PoEntry(accumulatedComments, List[PoReference](), msgCtxt, msgidValue, msgidPlural, translations.toList, fuzzy)
   }
 
-  def recoverEntriesWithSomeTranslations = {
+  def parse = Errors.trapByName("Line _" << lineNumber) {
     val entriesBuffer = ListBuffer[PoEntry]()
     var previousHeaderLine = 0
     var header: Option[PoEntry] = None
@@ -120,10 +119,10 @@ class PoReader(data: String, logger: Xlogger) extends LexParser(data, logger) {
         entriesBuffer += e
       if (e.msgid == "") {
         if (header != None)
-          error(savedStartLineNumber, "The Po file header entry (marked by a msgid \"\") appears twice, it first " +
-                "appeared around line _." << previousHeaderLine)
-          header = Some(e)
-          previousHeaderLine = savedStartLineNumber
+          Errors.fatal("The Po file header entry (marked by a msgid \"\") appears twice, it first " +
+            "appeared around line _." << previousHeaderLine)
+        header = Some(e)
+        previousHeaderLine = lineNumber
       }
     }
     (header, entriesBuffer.toList, obsoleteComments.obtainAndClear)

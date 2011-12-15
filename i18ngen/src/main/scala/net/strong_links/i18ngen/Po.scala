@@ -257,7 +257,7 @@ class MergeablePoEntry(val msgCtxt: Option[String], val msgid: String, val msgid
   }
 }
 
-class PoEntryBag(logger: Xlogger) {
+class PoEntryBag extends Logging {
   private val h = scala.collection.mutable.HashMap[String, MergeablePoEntry]()
   private var sequence = 0
 
@@ -299,9 +299,9 @@ class PoEntryBag(logger: Xlogger) {
     else {
       val ids1 = PoEntry.formatIds(i18nCall.msgid, i18nCall.msgidPlural)
       val ids2 = PoEntry.formatIds(x.msgid, x.msgidPlural)
-      logger.warning(i18nCall.loggingReference,
-                     "The string _ was ignored as it is incompatible with an other string _ previously defined."
-                     <<< (ids1, ids2))
+      logWarn(i18nCall.loggingReference,
+        "The string _ was ignored as it is incompatible with an other string _ previously defined."
+          <<< (ids1, ids2))
     }
   }
 

@@ -8,7 +8,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class I18nCatalog(val packageName: String, val sourceRoot: String, val languageCode: String, val countryCode: String = "")
 
-class I18nGenerator(logger: Xlogger) {
+class I18nGenerator extends Logging {
 
   // Constants.
   val PROGRAM_NAME = "i18nGen"
@@ -69,16 +69,13 @@ class I18nGenerator(logger: Xlogger) {
     // want to do that because the seeked Po entries are embedded within comments,
     // and by definition, comments can be any kind of junk, so we need to plan for
     // this.
-    val oops = new Exception
-    class TolerantParser(data: String) extends PoReader(data, logger) {
-      override def error(startLineNumber: Int, msg: LoggingParameter) = throw oops
-      def parse = try recoverEntriesWithSomeTranslations catch {
-        case e if (e eq oops) => (None, Nil, Nil)
-        case e => Errors.fatal("Unexpected parsing error: _." << e.getMessage)
+    class TolerantPoReader(data: String) extends PoReader(data) {
+      override def parse = try super.parse catch {
+        case _ => (None, Nil, Nil)
       }
     }
     // And use it on every obsolete comment found in the PoFile.
-    for (oc <- obsoleteComments; r <- new TolerantParser(oc.value).parse._2)
+    for (oc <- obsoleteComments; r <- new TolerantPoReader(oc.value).parse._2)
       yield r
   }
 
@@ -86,12 +83,12 @@ class I18nGenerator(logger: Xlogger) {
     nbPluralForms: Int, poFile: File, obsoleteComments: List[PoComment]) = {
 
     // Create a container for the Po entries that will be merged.
-    val mergedEntries = new PoEntryBag(logger)
+    val mergedEntries = new PoEntryBag
 
     // Scan the Scala source files, extracting the mergeable I18n entries. These entries here are
     // "minimalist", as they do not have any translations yet.
     val isScalaFile = (f: File) => f.getAbsolutePath.toLowerCase.endsWith(".scala")
-    IO.scanDirectory(inputDirectory, isScalaFile)(new ScalaFileReader(_, mergedEntries, logger).scan)
+    IO.scanDirectory(inputDirectory, isScalaFile)(new ScalaFileReader(_, mergedEntries).scan)
 
     // Try exact matches between recovered entries and new entries. The method returns the entries 
     // that did not macthed as obsolete comments.
@@ -114,9 +111,9 @@ class I18nGenerator(logger: Xlogger) {
     freshPoFileWriter.generateAndClose
 
     // The newly merged Po file can now replace the old Po file.
-    logger.debug("Deleting _" <<< poFile.getAbsolutePath)
+    logDebug("Deleting _" <<< poFile.getAbsolutePath)
     IO.deleteFile(poFile)
-    logger.debug("Renaming _ to _" <<< (freshPoFile.getAbsolutePath, poFile.getAbsolutePath))
+    logDebug("Renaming _ to _" <<< (freshPoFile.getAbsolutePath, poFile.getAbsolutePath))
     IO.renameFile(freshPoFile, poFile)
 
     newPoEntries
@@ -141,11 +138,11 @@ class I18nGenerator(logger: Xlogger) {
 
   def loadPoFile(poFile: File, languageKey: String) = {
 
-    val poFileReader = new PoFileReader(poFile, logger)
+    val poFileReader = new PoFileReader(poFile)
 
     // Get the entries in the original PO file, along with obsolete comments. 
     val (possibleHeaderEntry, recoveredEntriesWithTranslations, obsoleteComments) =
-      poFileReader.recoverEntriesWithSomeTranslations
+      poFileReader.parse
 
     // Make sure we have a file header
     val headerEntry = possibleHeaderEntry match {
@@ -156,8 +153,8 @@ class I18nGenerator(logger: Xlogger) {
     // Extract some run-time parameters from the Po file header. 
     val poHeader = new PoFileHeader(headerEntry, languageKey)
     val (nbPluralForms, pluralForms) = poHeader.getPluralInformation
-    logger.debug("Nb plural forms: _" << nbPluralForms)
-    logger.debug("Plural forms: _" << pluralForms)
+    logDebug("Nb plural forms: _" << nbPluralForms)
+    logDebug("Plural forms: _" << pluralForms)
 
     (recoveredEntriesWithTranslations, obsoleteComments, nbPluralForms, pluralForms)
   }
@@ -175,8 +172,8 @@ class I18nGenerator(logger: Xlogger) {
     val (languageKey, poFileName, className, resourceFileName) =
       getNames(targetLocale, packageName, inputDirectory, outputDirectory)
 
-    logger.debug("Po file: _" <<< poFileName)
-    logger.debug("Target locale: _." <<< I18nUtil.makeLanguageKey(targetLocale))
+    logDebug("Po file: _" <<< poFileName)
+    logDebug("Target locale: _." <<< I18nUtil.makeLanguageKey(targetLocale))
 
     // A new PO file is created with default contents if it does not exist.
     val (poFileCreated, poFile) = makePoFile(poFileName, packageName, targetLocale, languageKey)
@@ -201,9 +198,9 @@ class I18nGenerator(logger: Xlogger) {
       // Generate the resource file
       val scalaResourceFile = new File(resourceFileName)
       val resourceFileWriter = new ResourceFileWriter(scalaResourceFile, className, languageKey, nbPluralForms,
-        pluralForms, finalEntries, logger)
+        pluralForms, finalEntries)
       resourceFileWriter.generateAndClose
-      logger.debug("File _ generated successfully." <<< resourceFileName)
+      logDebug("File _ generated successfully." <<< resourceFileName)
       scalaResourceFile
     }
   }
@@ -211,10 +208,10 @@ class I18nGenerator(logger: Xlogger) {
 
 object I18ngen {
 
-  def run(logger: Xlogger, localizations: List[I18nLocalization], packageName: String, inputDirectory: File, outputDirectory: File) = {
+  def run(localizations: List[I18nLocalization], packageName: String, inputDirectory: File, outputDirectory: File) = {
     val filesCreated = new scala.collection.mutable.ListBuffer[File]
     localizations.foreach {
-      val g = new I18nGenerator(logger)
+      val g = new I18nGenerator
       localization => filesCreated += g.run(localization.locale, packageName, inputDirectory, outputDirectory, localization.parent == None)
     }
     filesCreated.toList

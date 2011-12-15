@@ -13,9 +13,12 @@ object Buildz extends Build {
     scalaVersion := "2.9.1",
     logLevel := Level.Warn,
     sbtPlugin := true,
-    logLevel in Global := Level.Warn,
+//    logLevel in Global := Level.Warn,
     publishArtifact in packageDoc := false,
-	  libraryDependencies ++= Seq(core)
+	  libraryDependencies ++= Seq(
+	    core,
+            "org.slf4j" % "slf4j-api" % "1.6.1"
+	  )
   )
 	
   lazy val root = Project(

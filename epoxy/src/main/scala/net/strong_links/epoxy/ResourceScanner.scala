@@ -4,14 +4,14 @@ import net.strong_links.core._
 
 import java.io.File
 
-class ResourceScanner(logger: Xlogger) extends EpoxyScanner(logger) {
+class ResourceScanner extends EpoxyScanner {
 
   var stackTrace = false
 
   def loadResCompCacheFile(resCompCacheFile: File): List[FileInfo] = {
     if (resCompCacheFile.exists) {
       if (!resCompCacheFile.isFile)
-        Errors.fatal("File _ is not a file." << resCompCacheFile.getCanonicalPath)
+        Errors.fatal("File _ is not a file." << resCompCacheFile)
       val data = IO.loadUtf8TextFile(resCompCacheFile).replace("\r\n", "\n")
       for (line <- Util.split(data).zipWithIndex.filter(!_._1.isEmpty))
         yield FileInfo(resCompCacheFile, line._1, line._2 + 1)
@@ -19,8 +19,8 @@ class ResourceScanner(logger: Xlogger) extends EpoxyScanner(logger) {
       Nil
   }
 
-  def processFiles(files: List[File], resCompCacheFile: File, directory: File, inputDirectory: File, outputDirectory: File, rootPackage: String, rebuild: Boolean): File = {
-    val segments = computePackageNameSegments(directory, inputDirectory, rootPackage)
+  def processFiles(files: List[File], resCompCacheFile: File, directory: File, rootDirectory: File, outputDirectory: File, rootPackage: Option[String], rebuild: Boolean): File = {
+    val segments = computePackageNameSegments(rootDirectory, directory, rootPackage)
     val fullPackageName = segments.mkString(".")
     val masterPackageSegments = segments.dropRight(1)
     val masterPackageName = masterPackageSegments.mkString(".")
@@ -35,7 +35,7 @@ class ResourceScanner(logger: Xlogger) extends EpoxyScanner(logger) {
 
     for (e <- loadResCompCacheFile(resCompCacheFile)) {
       if (oldMap.contains(e.name))
-        Errors.fatal("File name _ exists twice in cache file _." << (e.name, resCompCacheFile.getCanonicalPath))
+        Errors.fatal("File name _ exists twice in cache file _." << (e.name, resCompCacheFile))
       oldMap(e.name) = e
     }
 
@@ -62,9 +62,9 @@ class ResourceScanner(logger: Xlogger) extends EpoxyScanner(logger) {
     val entries = (recycledEntries ::: newEntries).sortWith(_.name < _.name)
 
     if (reuseCacheFile) {
-      logger.debug("Cache file has been reused.")
+      logDebug("Cache file has been reused.")
     } else {
-      logger.debug("Cache file has been recreated; _ MD5 entries recycled." <<< recycledEntries.length)
+      logDebug("Cache file has been recreated; _ MD5 entries recycled." <<< recycledEntries.length)
       IO.writeUtf8ToFile(resCompCacheFile, entries.map(e => e.name + "\t" + e.uuid + "\t" + e.lastModified).mkString("\n"))
     }
 
@@ -75,8 +75,8 @@ class ResourceScanner(logger: Xlogger) extends EpoxyScanner(logger) {
         true
 
     if (generate) {
-      logger.debug("Generating new file _." <<< outputFile.getCanonicalPath)
-      CodeGeneration.generateScalaFile(entries, outputFile, directory, masterPackageName, packageName, className, objectName, false, Nil) { e =>
+      logDebug("Generating new file _." <<< outputFile)
+      generateScalaFile(entries, outputFile, directory, masterPackageName, packageName, className, objectName, false, Nil) { e =>
         val cs = new LeveledCharStream
         cs.println("def _ = {" << e.makeFunctionName(directory))
         cs.increaseLevel
@@ -87,28 +87,28 @@ class ResourceScanner(logger: Xlogger) extends EpoxyScanner(logger) {
         cs.close
       }
     } else
-      logger.debug("File _ is up-to-date." <<< outputFile.getCanonicalPath)
+      logDebug("File _ is up-to-date." <<< outputFile)
     outputFile
   }
 
-  def process(directory: File, inputDirectory: File, outputDirectory: File, rootPackage: String, rebuild: Boolean): Option[File] = {
+  def process(directory: File, rootDirectory: File, outputDirectory: File, rootPackage: Option[String], rebuild: Boolean): Option[File] = {
 
-    val resCompCacheFileName = "rescomp.cache"
-    val resCompCacheFullFileName = directory.getCanonicalPath + IO.dirSeparator + resCompCacheFileName
-    val resCompCacheFile = new File(resCompCacheFullFileName)
+    val fname = "rescomp.cache"
+    val resCompCacheFile = IO.makeFile(directory, fname)
+    val resCompCacheFileName = resCompCacheFile.getCanonicalPath
 
     // Check if there are files in this directory.
     val files = directory.listFiles.toList.filter(_.isFile).filter(_.getName != resCompCacheFileName)
 
-    logger.info("Processing directory _" <<< directory.getCanonicalPath)
+    logInfo("Processing directory _" <<< directory)
 
     if (files.isEmpty) {
-      logger.debug("Directory empty, deleting _ if it exists." <<< resCompCacheFile.getCanonicalPath)
+      logDebug("Directory empty, deleting _ if it exists." <<< resCompCacheFile)
       IO.deleteFile(resCompCacheFile, true)
       None
     } else {
-      logger.debug("Directory not empty, processing files.")
-      Some(processFiles(files, resCompCacheFile, directory, inputDirectory, outputDirectory, rootPackage, rebuild))
+      logDebug("Directory not empty, processing files.")
+      Some(processFiles(files, resCompCacheFile, directory, rootDirectory, outputDirectory, rootPackage, rebuild))
     }
   }
 

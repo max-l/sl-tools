@@ -13,11 +13,11 @@ abstract class StandAloneRunner {
 
     CmdLine(this, args).run(
       fileParameter("input directory", inputDirectoryLabel),
-      stringParameter("root package", "Root package."),
       fileParameter("output directory", outputDirectoryLabel),
+      stringSwitch("root-package", "package name", "Root package name."),
       switch("rebuild", "Always rebuild all output files.")) {
-        (logger, inputDirectory, rootPackage, outputDirectory, rebuild) =>
-          scannerCreator(logger).run(inputDirectory, outputDirectory, rootPackage, rebuild)
+        (inputDirectory, rootPackage, outputDirectory, rebuild) =>
+          scannerCreator.run(inputDirectory, rootPackage, outputDirectory, rebuild)
       }
   }
 }

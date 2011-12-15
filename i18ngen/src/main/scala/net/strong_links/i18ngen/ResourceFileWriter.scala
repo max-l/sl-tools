@@ -6,11 +6,11 @@ import java.io.File
 import java.io.PrintWriter
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.ListBuffer
- 
+
 object StaticCode {
-    
+
   val body =
-"""
+    """
   // Map to transform a key string into an index internal to this class.
     
   private val h = new java.util.IdentityHashMap[String, Int](nbEntries)
@@ -56,8 +56,8 @@ object StaticCode {
   }
 """
 
-val flatten = 
-"""
+  val flatten =
+    """
   private def flatten[T: ClassManifest](arrays: Array[Array[T]]): Array[T] = {
     var flattenArraySize = 0
     var i = 0
@@ -77,7 +77,7 @@ val flatten =
       throw new Exception("Size mismatch while copying arrays, " + k + " vs. " + flattenArraySize)
     flattenArray
    }
-"""  
+"""
 }
 
 class TableDef[T <: Any](name: String, data: Array[T], isVar: Boolean) {
@@ -92,12 +92,12 @@ class TableDef[T <: Any](name: String, data: Array[T], isVar: Boolean) {
   def generateArray(start: Int, length: Int) = {
     for (i <- start until start + length)
       yield data(i) match {
-        case null => "null" 
-        case s: String => "\"" + s + "\""
-        case x => x.toString
-      }
+      case null => "null"
+      case s: String => "\"" + s + "\""
+      case x => x.toString
+    }
   }
-  
+
   def methodName(suffix: String) = {
     "build" + name.capitalize + suffix
   }
@@ -107,7 +107,7 @@ class TableDef[T <: Any](name: String, data: Array[T], isVar: Boolean) {
   }
 
   def build(suffix: String, start: Int, length: Int, sb: StringBuilder): String = {
-    val body = 
+    val body =
       if (length > MAX_ARRAY_ENTRIES) {
         val subBuild = ListBuffer[String]()
         var i = start
@@ -125,9 +125,9 @@ class TableDef[T <: Any](name: String, data: Array[T], isVar: Boolean) {
         generateArray(start, length).mkString(arrayStart, ", ", ")")
       }
     sb.append("\n")
-    sb.append("  private def _: Array[_] = {\n" << (methodName(suffix), tableType))  
+    sb.append("  private def _: Array[_] = {\n" << (methodName(suffix), tableType))
     sb.append(body); sb.append("\n")
-    sb.append("  }")  
+    sb.append("  }")
     sb.append("\n")
     methodName(suffix)
   }
@@ -137,21 +137,21 @@ class TableDef[T <: Any](name: String, data: Array[T], isVar: Boolean) {
   }
 }
 
-class ResourceFileWriter(file: File, className: String, languageKey: String, nbPluralForms: Int, 
-                         pluralForms: String, entries: List[PoEntry], loggers: Xlogger) {
+class ResourceFileWriter(file: File, className: String, languageKey: String, nbPluralForms: Int,
+  pluralForms: String, entries: List[PoEntry]) {
 
   val pw = new CharStream
-  
-  def generateStaticCode(timestamp: String, nbEntries: Int, nbPluralForms: Int, 
-                         pluralForms: String): String = {
-    
+
+  def generateStaticCode(timestamp: String, nbEntries: Int, nbPluralForms: Int,
+    pluralForms: String): String = {
+
     StaticCode.body << (languageKey, nbEntries, nbPluralForms, pluralForms, timestamp, System.getProperty("java.version"));
   }
 
   def generateAndClose {
 
     val nbEntries = entries.length
-    
+
     // Allocate tables
     val keyTable = new Array[String](nbEntries)
     val firstTranslationTable = new Array[Int](nbEntries)
@@ -159,7 +159,7 @@ class ResourceFileWriter(file: File, className: String, languageKey: String, nbP
 
     // Compute the table entries.
     for (k <- 0 until nbPluralForms)
-      translationTableBuffer += "" 
+      translationTableBuffer += ""
     for ((e, i) <- entries.zipWithIndex) {
       keyTable(i) = e.msgCtxt match {
         case None => e.msgid
@@ -179,7 +179,7 @@ class ResourceFileWriter(file: File, className: String, languageKey: String, nbP
       new TableDef("keyTable", keyTable, true),
       new TableDef("firstTranslationTable", firstTranslationTable, false),
       new TableDef("translationTable", translationTable, false))
-        
+
     val now = Util.nowAsString
     pw.println("// -------------_" << ("-" * Util.nowAsString.length))
     pw.println("// Generated on _" << now)
@@ -195,8 +195,8 @@ class ResourceFileWriter(file: File, className: String, languageKey: String, nbP
       pw.println(t.generateVal)
 
     pw.println(generateStaticCode(now, nbEntries, nbPluralForms, pluralForms))
-    
-    val compiler = new PluralFormsCompiler(pluralForms, loggers)
+
+    val compiler = new PluralFormsCompiler(pluralForms)
     val pluralFormsMethod = compiler.compile
 
     pw.println("  // Compute the required plural form for a given 'n'.")
@@ -204,13 +204,13 @@ class ResourceFileWriter(file: File, className: String, languageKey: String, nbP
     pw.println(pluralFormsMethod)
     pw.println
 
-    pw.println("  // Generic array flattening method.") 
+    pw.println("  // Generic array flattening method.")
     pw.println(StaticCode.flatten)
 
     //val typesDone = collection.mutable.Set[String]()
     //for (t <- tables if (!typesDone.contains(t.tableType))) {
-      //typesDone += t.tableType
-      //pw.println(generateFlattenMethodForType(t.tableType))
+    //typesDone += t.tableType
+    //pw.println(generateFlattenMethodForType(t.tableType))
     //}
 
     pw.println("  // Build the tables.")

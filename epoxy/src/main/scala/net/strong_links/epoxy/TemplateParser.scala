@@ -4,7 +4,7 @@ import net.strong_links.core._
 
 import java.io.File
 
-class TemplateParser(file: File, logger: Xlogger) extends BasicLexParser(IO.loadUtf8TextFile(file), logger) {
+class TemplateParser(file: File) extends BasicLexParser(IO.loadUtf8TextFile(file)) {
 
   class TemplateArgumentMember(val name: String, val firstUseLine: Int, val baseType: String)
 
@@ -51,7 +51,7 @@ class TemplateParser(file: File, logger: Xlogger) extends BasicLexParser(IO.load
         if (!done) {
           val z = r.indexOf(commentEnd, pos + commentStart.length)
           if (z == -1)
-            error(startLineNumber, "Unclosed HTML comment.")
+            Errors.fatal("Unclosed HTML comment.")
           r = r.substring(0, pos) + r.substring(z + commentEnd.length)
         }
       }
@@ -90,8 +90,6 @@ class TemplateParser(file: File, logger: Xlogger) extends BasicLexParser(IO.load
 
   import LexSymbol._
 
-  override def getFileName = Some(file.getCanonicalPath)
-
   override def getSymbolHere {
     if (currentChar == '<' && nextChar == '!' && nextNextChar == '-' && nextNextNextChar == '-') {
       move(4)
@@ -112,9 +110,9 @@ class TemplateParser(file: File, logger: Xlogger) extends BasicLexParser(IO.load
     val declarationLineNumber = startLineNumber
     val templateName = symbolValue
     if (!templateName(0).isLower)
-      error(startLineNumber, "The template name _ does not start with a lowercase letter." << templateName)
+      Errors.fatal("The template name _ does not start with a lowercase letter." << templateName)
     if (templates.contains(templateName))
-      error(startLineNumber, "The template _ has already been declared near line _." <<
+      Errors.fatal("The template _ has already been declared near line _." <<
         (templateName, templates(templateName)))
     getSymbol
     val args = scala.collection.mutable.ListBuffer[String]()
@@ -123,7 +121,7 @@ class TemplateParser(file: File, logger: Xlogger) extends BasicLexParser(IO.load
       getSymbol
       expect(identifier)
       if (symbolValue(0) != '$')
-        error(startLineNumber, "The argument name _ does not start with a $ sign." << symbolValue)
+        Errors.fatal("The argument name _ does not start with a $ sign." << symbolValue)
       args += symbolValue.substring(1)
       getSymbol
     }
@@ -151,7 +149,7 @@ class TemplateParser(file: File, logger: Xlogger) extends BasicLexParser(IO.load
         template.verbatim(endPos, true)
         val unusedArguments = template.arguments.filter(_.finalMembers.isEmpty).map(_.name)
         if (!unusedArguments.isEmpty)
-          error(startLineNumber, "Unused arguments: _" << unusedArguments)
+          Errors.fatal("Unused arguments: _" << unusedArguments)
         template.generateCode
         currentTemplate = None
     }
@@ -183,7 +181,7 @@ class TemplateParser(file: File, logger: Xlogger) extends BasicLexParser(IO.load
     if (firstUse)
       arg.firstUseLine = lineNumber
     else if (arg.isObject != isObject)
-      error(startLineNumber, "Argument _ is used as _ but it was previously used as _ on line _ (incompatible base types)." <<
+      Errors.fatal("Argument _ is used as _ but it was previously used as _ on line _ (incompatible base types)." <<
         (arg.name, ono(isObject), ono(arg.isObject), arg.firstUseLine))
     arg.isObject = isObject
 
@@ -194,7 +192,7 @@ class TemplateParser(file: File, logger: Xlogger) extends BasicLexParser(IO.load
         expect(identifier)
         val x = symbolValue
         if (!x(0).isLower)
-          error(startLineNumber, "Member name _ does not start with a lowercase letter." << x)
+          Errors.fatal("Member name _ does not start with a lowercase letter." << x)
         // Position now just after the member name: : $arg.member^
         template.verbatimPos = pos
         getSymbol
@@ -230,7 +228,7 @@ class TemplateParser(file: File, logger: Xlogger) extends BasicLexParser(IO.load
     if (arg.members.contains(memberName)) {
       val m = arg.members(memberName)
       if (m.baseType != baseType)
-        error(startLineNumber, "Argument _ is used as _ but it was previously used as _ on line _ (incompatible base types)." <<
+        Errors.fatal("Argument _ is used as _ but it was previously used as _ on line _ (incompatible base types)." <<
           (fullMemberName, baseType, m.baseType, m.firstUseLine))
     } else
       arg.members += (memberName -> new TemplateArgumentMember(memberName, lineNumber, baseType))
@@ -249,9 +247,9 @@ class TemplateParser(file: File, logger: Xlogger) extends BasicLexParser(IO.load
     }
   }
 
-  def compile = {
+  def compile = Errors.trap("Template file _" << file) {
     getSymbol
-    while (symbol != eof) 
+    while (symbol != eof)
       (symbol, currentTemplate) match {
         case (`htmlStartComment`, _) =>
           processHtmlComment

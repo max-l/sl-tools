@@ -4,7 +4,7 @@ import net.strong_links.core._
 
 import java.io.File
 
-object I18ngenStandAloneConfiguration {
+object I18ngenStandAloneConfiguration extends Logging {
 
   import CmdLine._
 
@@ -16,11 +16,11 @@ object I18ngenStandAloneConfiguration {
       stringParameter("package code language", "Localization of package code"),
       fileParameter("input directory", "Root directory for the package."),
       fileParameter("output directory", "Generated code root directory")) {
-        (logger, localizationsList, packageName, codeLanguage, inputDirectory, outputDirectory) =>
+        (localizationsList, packageName, codeLanguage, inputDirectory, outputDirectory) =>
           val codeLocalization = I18nUtil.makeCodeLocalizationsFrom(codeLanguage)
-          logger.debug("Package code localization: _" << codeLocalization)
+          logDebug("Package code localization: _" << codeLocalization)
           val localizations = I18nUtil.makeLocalizationsFrom(codeLocalization, localizationsList)
-          I18ngen.run(logger, localizations, packageName, inputDirectory, outputDirectory)
+          I18ngen.run(localizations, packageName, inputDirectory, outputDirectory)
       }
   }
 }

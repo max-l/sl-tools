@@ -7,10 +7,17 @@ import sbt.Keys._
 
 object Epoxy {
 
-  private def wrapSbtLogger(sbtLogger: sbt.Logger): net.strong_links.core.Logger = new {
+  private def wrapSbtLogger(sbtLogger: sbt.Logger, _logLevel: Level.Value): net.strong_links.core.Logging.GenericLogger = new {
+
+    import Level._
+
+    def isErrorEnabled(): Boolean = _logLevel == Error
+    def isDebugEnabled(): Boolean = _logLevel == Debug
+    def isInfoEnabled(): Boolean = _logLevel == Info
+    def isWarnEnabled(): Boolean = _logLevel == Warn
     def debug(msg: String): Unit = sbtLogger.debug(msg)
     def info(msg: String): Unit = sbtLogger.info(msg)
-    def warning(msg: String): Unit = sbtLogger.warn(msg)
+    def warn(msg: String): Unit = sbtLogger.warn(msg)
     def error(msg: String): Unit = sbtLogger.error(msg)
   }
 
@@ -23,6 +30,7 @@ object Epoxy {
   private val watchedResources = TaskKey[Seq[File]]("epoxy-watched-resources")
 
   private def defineEpoxyTask(forCompile: Boolean) = (
+    logLevel,
     streams,
     organization,
     thisProject,
@@ -30,30 +38,30 @@ object Epoxy {
     watchedResources,
     epoxyTemplateRoots,
     epoxyResourceRoots,
-    (sourceManaged in Compile)) map { (streams, org, proj, wt, wr, templateDirs, resourceDirs, outDir) =>
+    (sourceManaged in Compile)) map { (lLevel, streams, org, proj, wt, wr, templateDirs, resourceDirs, outDir) =>
 
-      val res1 = templateDirs.flatMap(td => if (td.exists) SbtTemplateRunner(wrapSbtLogger(streams.log), td, outDir, org + "." + proj.id + ".templates") else Nil)
-      val res2 = resourceDirs.flatMap(rd => if (rd.exists) SbtResourceRunner(wrapSbtLogger(streams.log), rd, outDir, org + "." + proj.id + ".resources") else Nil)
+      Logging.using(wrapSbtLogger(streams.log, lLevel)) {
+        val res1 = templateDirs.flatMap(td => if (td.exists) SbtTemplateRunner(td, outDir, Some(org + "." + proj.id + ".templates")) else Nil)
+        val res2 = resourceDirs.flatMap(rd => if (rd.exists) SbtResourceRunner(rd, outDir, Some(org + "." + proj.id + ".resources")) else Nil)
 
-      if (forCompile)
-        res1 ++ res2
-      else
-        wt ++ wr
+        if (forCompile)
+          res1 ++ res2
+        else
+          wt ++ wr
+      }
     }
 
   def init = {
 
     val epoxyTask = (TaskKey[Seq[File]]("epoxy") in Compile) <<= defineEpoxyTask(false)
-    
+
     Seq(
-      (epoxyTemplateRoots) <<= sourceDirectory.map(src =>  Nil: Seq[File]),
-      (epoxyResourceRoots) <<= sourceDirectory.map(src =>  Nil: Seq[File]),      
-      watchedTemplates  <<= (epoxyTemplateRoots in Compile).map(etr => 
-        etr.flatMap(d => (PathFinder(d) ** "*").get)
-      ),
-      watchedResources  <<= (epoxyResourceRoots in Compile).map(err => 
-        err.flatMap(d => (PathFinder(d) ** "*").get)        
-      ),
+      (epoxyTemplateRoots) <<= sourceDirectory.map(src => Nil: Seq[File]),
+      (epoxyResourceRoots) <<= sourceDirectory.map(src => Nil: Seq[File]),
+      watchedTemplates <<= (epoxyTemplateRoots in Compile).map(etr =>
+        etr.flatMap(d => (PathFinder(d) ** "*").get)),
+      watchedResources <<= (epoxyResourceRoots in Compile).map(err =>
+        err.flatMap(d => (PathFinder(d) ** "*").get)),
       watchSources <++= (watchedTemplates in Compile),
       watchSources <++= (watchedResources in Compile),
       epoxyTask,

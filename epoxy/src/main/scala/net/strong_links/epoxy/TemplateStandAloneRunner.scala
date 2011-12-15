@@ -8,5 +8,5 @@ object TemplateStandAloneRunner extends StandAloneRunner {
   def inputDirectoryLabel = "Template root directory."
   def outputDirectoryLabel = "Generated code root directory."
 
-  def main(args: Array[String]): Unit = super.main(args)(logger => new TemplateScanner(logger))
+  def main(args: Array[String]): Unit = super.main(args)(new TemplateScanner)
 }

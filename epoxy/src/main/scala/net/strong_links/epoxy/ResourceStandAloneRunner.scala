@@ -8,5 +8,5 @@ object ResourceStandAloneRunner extends StandAloneRunner {
   def inputDirectoryLabel = "Resource root directory."
   def outputDirectoryLabel = "Generated code root directory."
 
-  def main(args: Array[String]): Unit = super.main(args)(logger => new ResourceScanner(logger))
+  def main(args: Array[String]): Unit = super.main(args)(new ResourceScanner)
 }

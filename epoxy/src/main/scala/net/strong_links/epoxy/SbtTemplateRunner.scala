@@ -5,7 +5,7 @@ import net.strong_links.core._
 import java.io.File
 
 object SbtTemplateRunner {
-  def apply(logger: Logger, inputDirectory: File, outputDirectory: File, rootPackage: String) = {
-    new TemplateScanner(new Xlogger(logger)).run(inputDirectory, outputDirectory, rootPackage, false)
+  def apply(inputDirectory: File, outputDirectory: File, rootPackage: Option[String]) = {
+    new TemplateScanner().run(inputDirectory, outputDirectory, rootPackage, false)
   }
 }

@@ -4,19 +4,17 @@ import net.strong_links.core._
 
 import java.io.File
 
-class ScalaFileReader(file: File, entryBag: PoEntryBag, logger: Xlogger) extends LexParser(IO.loadUtf8TextFile(file), logger) {
-  
-  override def getFileName = Some(file.getAbsolutePath)
+class ScalaFileReader(file: File, entryBag: PoEntryBag) extends LexParser(IO.loadUtf8TextFile(file)) {
 
   import LexSymbol._
-  
+
   // Treat verbatim strings as normal strings.
   override def eatString = {
-   if (symbol == verbatimString)
-     symbol = string
-   super.eatString
+    if (symbol == verbatimString)
+      symbol = string
+    super.eatString
   }
-  
+
   // Constants
   val I18nNeutralId = "I18n"
   val I18nNonNeutralId = "I18nPlural"
@@ -27,7 +25,7 @@ class ScalaFileReader(file: File, entryBag: PoEntryBag, logger: Xlogger) extends
   val comments = new FlushableCommentBag(5)
 
   var entryStartLineNumber = 0
-  
+
   def add(withContext: Boolean, withPlural: Boolean) {
     val msgCtxt = if (withContext) { val ctx = eatString; skip(comma); Some(ctx) } else None
     val msgidValue = eatString
@@ -44,11 +42,11 @@ class ScalaFileReader(file: File, entryBag: PoEntryBag, logger: Xlogger) extends
     getSymbol
     if (symbol == leftParenthesis) {
       getSymbol
-      if (symbol == string || symbol == verbatimString) 
-        add(withContext, withPlural) 
+      if (symbol == string || symbol == verbatimString)
+        add(withContext, withPlural)
     }
   }
-  
+
   def scan {
     getSymbol
     while (symbol != eof) {
