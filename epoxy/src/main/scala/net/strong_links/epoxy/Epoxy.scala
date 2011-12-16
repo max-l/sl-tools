@@ -1,9 +1,9 @@
 package net.strong_links.epoxy
 
 import net.strong_links.core._
-
 import sbt._
 import sbt.Keys._
+import sbt.ResolvedProject
 
 object Epoxy {
 
@@ -29,6 +29,11 @@ object Epoxy {
 
   private val watchedResources = TaskKey[Seq[File]]("epoxy-watched-resources")
 
+  private def mkRootPackage(org: String, p: ResolvedProject, w: String) = {
+    val x = org + "." + p.id + ".templates"
+    Some(x.replace("-", "_"))
+  }
+
   private def defineEpoxyTask(forCompile: Boolean) = (
     logLevel,
     streams,
@@ -41,8 +46,8 @@ object Epoxy {
     (sourceManaged in Compile)) map { (lLevel, streams, org, proj, wt, wr, templateDirs, resourceDirs, outDir) =>
 
       Logging.using(wrapSbtLogger(streams.log, lLevel)) {
-        val res1 = templateDirs.flatMap(td => if (td.exists) SbtTemplateRunner(td, outDir, Some(org + "." + proj.id + ".templates")) else Nil)
-        val res2 = resourceDirs.flatMap(rd => if (rd.exists) SbtResourceRunner(rd, outDir, Some(org + "." + proj.id + ".resources")) else Nil)
+        val res1 = templateDirs.flatMap(td => if (td.exists) SbtTemplateRunner(td, outDir, mkRootPackage(org, proj, ".templates")) else Nil)
+        val res2 = resourceDirs.flatMap(rd => if (rd.exists) SbtResourceRunner(rd, outDir, mkRootPackage(org, proj, ".resources")) else Nil)
 
         if (forCompile)
           res1 ++ res2

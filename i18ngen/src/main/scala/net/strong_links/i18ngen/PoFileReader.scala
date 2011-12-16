@@ -108,7 +108,7 @@ class PoReader(data: String) extends LexParser(data) {
     new PoEntry(accumulatedComments, List[PoReference](), msgCtxt, msgidValue, msgidPlural, translations.toList, fuzzy)
   }
 
-  def parse = Errors.trapByName("Line _" << lineNumber) {
+  def parse = Errors.liveTrap("Line _" << lineNumber) {
     val entriesBuffer = ListBuffer[PoEntry]()
     var previousHeaderLine = 0
     var header: Option[PoEntry] = None

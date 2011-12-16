@@ -36,7 +36,7 @@ abstract class EpoxyScanner extends CodeGeneration with Logging {
     }
 
     if (hasError)
-      throw new Exception("Errors detected in source files.")
+      Errors.fatal("Errors detected in source files.")
 
     logDebug("_ files provided to SBT" << filesCreated.length)
 

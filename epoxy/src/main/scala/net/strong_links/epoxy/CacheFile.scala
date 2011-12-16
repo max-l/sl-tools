@@ -15,9 +15,7 @@ object FileInfo {
       val e = "Invalid data found in file _, line _" << (file, lineNumber)
       Errors.fatal(List(e: LoggingParameter) ::: what.toList: _*)
     }
-    val segments = Util.nsplit(line, 2, '\t')
-    if (segments.length != 3)
-      error("_ segments found, but 3 were expected" << segments.length)
+    val segments = Util.nsplit(line, 3, '\t')
     val lastModified = Errors.trap("Conversion error on _" << segments(2))(segments(2).toLong)
     new FileInfo(segments(0), segments(1), lastModified)
   }

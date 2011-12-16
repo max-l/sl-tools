@@ -6,25 +6,25 @@ import Keys._
 object Buildz extends Build {
 
   val core = "net.strong_links" %% "core" % "0.2"  
-				   
+
   def buildSettings = Defaults.defaultSettings ++ Seq(
     organization := "net.strong_links",
     version := "0.2",
     scalaVersion := "2.9.1",
     logLevel := Level.Warn,
     sbtPlugin := true,
-//    logLevel in Global := Level.Warn,
+    logLevel in Global := Level.Warn,
     publishArtifact in packageDoc := false,
-	  libraryDependencies ++= Seq(
-	    core,
+    libraryDependencies ++= Seq(
+    core,
             "org.slf4j" % "slf4j-api" % "1.6.1"
-	  )
+    )
   )
-	
+  
   lazy val root = Project(
     id = "root",
     base = file("."),
-	  settings = buildSettings
+    settings = buildSettings
   ) aggregate(epoxy, i18ngen)
   
   
