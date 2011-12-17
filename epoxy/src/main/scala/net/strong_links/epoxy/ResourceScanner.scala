@@ -25,8 +25,11 @@ class ResourceScanner extends EpoxyScanner {
     val masterPackageSegments = segments.dropRight(1)
     val masterPackageName = masterPackageSegments.mkString(".")
     val packageName = segments.last
-    val objectName = packageName
-    val className = packageName.capitalize
+    val className = if (packageName(0).isUpper)
+      packageName(0).toLower + packageName.substring(1)
+    else
+      packageName
+    val objectName = className
     val outputDirectoryName = outputDirectory.getCanonicalPath + IO.dirSeparator + segments.mkString(IO.dirSeparator)
     val outputFile = new File(outputDirectoryName + IO.dirSeparator + "package.scala")
     val directoryForPackage = segments.mkString(IO.dirSeparator)

@@ -11,10 +11,15 @@ object Epoxy {
 
     import Level._
 
-    def isErrorEnabled(): Boolean = _logLevel == Error
-    def isDebugEnabled(): Boolean = _logLevel == Debug
-    def isInfoEnabled(): Boolean = _logLevel == Info
-    def isWarnEnabled(): Boolean = _logLevel == Warn
+    // Note the following values for the log levels.
+    //   - error = 4
+    //   - warn =  3
+    //   - info =  2
+    //   - debug = 1
+    def isErrorEnabled(): Boolean = _logLevel <= Error
+    def isWarnEnabled(): Boolean = _logLevel <= Warn
+    def isInfoEnabled(): Boolean = _logLevel <= Info
+    def isDebugEnabled(): Boolean = _logLevel <= Debug
     def debug(msg: String): Unit = sbtLogger.debug(msg)
     def info(msg: String): Unit = sbtLogger.info(msg)
     def warn(msg: String): Unit = sbtLogger.warn(msg)
@@ -30,7 +35,7 @@ object Epoxy {
   private val watchedResources = TaskKey[Seq[File]]("epoxy-watched-resources")
 
   private def mkRootPackage(org: String, p: ResolvedProject, w: String) = {
-    val x = org + "." + p.id + ".templates"
+    val x = org + "." + p.id + w
     Some(x.replace("-", "_"))
   }
 

@@ -16,13 +16,12 @@ class TemplateScanner extends EpoxyScanner with Logging {
         "net.strong_links.scalaforms.BaseField", "net.strong_links.scalaforms.OutStream",
         "net.strong_links.scalaforms.fieldTransformer", <a/>.getClass.getCanonicalName)
       generateScalaFile(entries, outputFile, file, masterPackageName, packageName, className, objectName, true, imports)(_.code)
-      println("Generated file: _." << outputFile)
-      println("Master: _" << masterPackageName)
-      println("Package: _" << packageName)
+      logDebug("Generated file: _." << outputFile)
     }
   }
 
   def process(file: File, rootDirectory: File, outputDirectory: File, rootPackage: Option[String], rebuild: Boolean) = {
+    logDebug("Processing template _" <<< file)
     val segments = computePackageNameSegments(rootDirectory, file, rootPackage)
     if (segments.length < 2)
       Errors.fatal("Not enough segments in _, expected at least 2." << segments)
@@ -46,19 +45,13 @@ class TemplateScanner extends EpoxyScanner with Logging {
     val outputDirectoryName = outputDirectory.getCanonicalPath + IO.dirSeparator + addedPath + deltaPath
     IO.createDirectory(new File(outputDirectoryName), true)
     val outputFile = new File(outputDirectoryName + IO.dirSeparator + className + ".scala")
-    println("Output to: _" << outputFile)
     val generate =
       if (outputFile.exists && !rebuild)
         file.lastModified > outputFile.lastModified
       else
         true
-
-    logDebug("Processing input file: _" <<< file)
-    logDebug("Output file: _" <<< outputFile)
-    logDebug("Package: _" <<< fullPackageName)
-
     if (generate) {
-      logDebug("Generating new file _." <<< outputFile)
+      logDebug("Output file must be generated.")
       try {
         generateTemplate(file, outputFile, masterPackageName, packageName, className, objectName)
         Some(outputFile): Option[File]
@@ -70,7 +63,7 @@ class TemplateScanner extends EpoxyScanner with Logging {
           None
       }
     } else {
-      logDebug("File _ is up-to-date." <<< outputFile)
+      logDebug("Output file is already up-to-date - not generated.")
       Some(outputFile)
     }
   }

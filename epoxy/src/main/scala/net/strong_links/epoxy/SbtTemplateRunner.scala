@@ -6,6 +6,6 @@ import java.io.File
 
 object SbtTemplateRunner {
   def apply(inputDirectory: File, outputDirectory: File, rootPackage: Option[String]) = {
-    new TemplateScanner().run(inputDirectory, outputDirectory, rootPackage, false)
+    (new TemplateScanner).run(inputDirectory, outputDirectory, rootPackage, false)
   }
 }

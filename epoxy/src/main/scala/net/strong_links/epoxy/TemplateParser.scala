@@ -1,10 +1,13 @@
 package net.strong_links.epoxy
 
 import net.strong_links.core._
+import net.strong_links.core.lex._
 
 import java.io.File
 
-class TemplateParser(file: File) extends BasicLexParser(IO.loadUtf8TextFile(file)) {
+class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
+
+  val HtmlStartComment, HtmlEndComment, DefStart, DefEnd, PreserveSpaces = Value
 
   class TemplateArgumentMember(val name: String, val firstUseLine: Int, val baseType: String)
 
@@ -88,61 +91,69 @@ class TemplateParser(file: File) extends BasicLexParser(IO.loadUtf8TextFile(file
     }
   }
 
-  import LexSymbol._
+  // Methods to get the various symbols.
+  override def getWord(word: String) {
+    word match {
+      case "def" => setToken(DefStart)
+      case "end" => setToken(DefEnd)
+      case "preserveSpaces" => setToken(PreserveSpaces)
+      case s => super.getWord(word)
+    }
+  }
 
-  override def getSymbolHere {
+  override def getMiscellaneous {
     if (currentChar == '<' && nextChar == '!' && nextNextChar == '-' && nextNextNextChar == '-') {
       move(4)
-      symbol = htmlStartComment
+      setToken(HtmlStartComment, "<!--")
     } else if (currentChar == '-' && nextChar == '-' && nextNextChar == '>') {
       move(3)
-      symbol = htmlEndComment
+      setToken(HtmlEndComment, "-->")
     } else
-      super.getSymbolHere
+      super.getMiscellaneous
   }
 
   var templates = scala.collection.mutable.Map[String, Template]()
   var currentTemplate: Option[Template] = None
 
-  def templateStart {
-    getSymbol
-    expect(identifier)
-    val declarationLineNumber = startLineNumber
-    val templateName = symbolValue
+  def startTemplate {
+    getToken
+    expect(Identifier)
+    val declarationLineNumber = token.lineNumber
+    val templateName = token.value
     if (!templateName(0).isLower)
       Errors.fatal("The template name _ does not start with a lowercase letter." << templateName)
     if (templates.contains(templateName))
       Errors.fatal("The template _ has already been declared near line _." <<
         (templateName, templates(templateName)))
-    getSymbol
+    getToken
     val args = scala.collection.mutable.ListBuffer[String]()
-    expect(Set(leftParenthesis, htmlEndComment))
+    expect(LeftParenthesis, HtmlEndComment)
     def getArgument {
-      getSymbol
-      expect(identifier)
-      if (symbolValue(0) != '$')
-        Errors.fatal("The argument name _ does not start with a $ sign." << symbolValue)
-      args += symbolValue.substring(1)
-      getSymbol
+      getToken
+      expect(Identifier)
+      if (token.value(0) != '$')
+        Errors.fatal("The argument name _ does not start with a $ sign." << token.value)
+      args += token.value.substring(1)
+      getToken
     }
-    if (symbol == leftParenthesis) {
+    if (token is LeftParenthesis) {
       getArgument
-      while (symbol == comma)
+      while (token is Comma)
         getArgument
-      skip(rightParenthesis)
+      skip(RightParenthesis)
     }
-    val isPreserveSpace = (symbol == preserveSpaces)
+    val isPreserveSpace = token is PreserveSpaces
     if (isPreserveSpace)
-      getSymbol
+      getToken
     val posAfterComment = pos
-    skip(htmlEndComment)
+    skip(HtmlEndComment)
     val arguments = args.toList.map(name => new TemplateArgument(name))
     val template = new Template(templateName, declarationLineNumber, arguments, isPreserveSpace, posAfterComment, data)
     currentTemplate = Some(template)
     templates += (templateName -> template)
   }
 
-  def templateEnd(endPos: Int) {
+  def endTemplate(endPos: Int) {
     currentTemplate match {
       case None =>
       case Some(template) =>
@@ -156,17 +167,17 @@ class TemplateParser(file: File) extends BasicLexParser(IO.loadUtf8TextFile(file
   }
 
   def isArgumentName(arg: String) = {
-    arg.startsWith("$") && arg.length > 1 && isIdentifierCharacter(arg(1))
+    arg.startsWith("$") && arg.length > 1 && (arg(1).isLetter || arg(1) == '_')
   }
 
   def processHtmlComment {
     val savedPos = startPos
-    getSymbol
-    if (symbol == template || symbol == LexSymbol.templateEnd) {
-      val start = symbol == template
-      templateEnd(savedPos)
+    getToken
+    if (token in (DefStart, DefEnd)) {
+      val start = token is DefStart
+      endTemplate(savedPos)
       if (start)
-        templateStart
+        startTemplate
     }
   }
 
@@ -176,7 +187,7 @@ class TemplateParser(file: File) extends BasicLexParser(IO.loadUtf8TextFile(file
 
     // Check if first use, and if so, whether the usage as object/non object is consistent.
     def ono(isObject: Boolean) = if (isObject) "an object" else "a non object"
-    val isObject = (symbol == dot)
+    val isObject = token is Dot
     val firstUse = arg.firstUseLine == -1
     if (firstUse)
       arg.firstUseLine = lineNumber
@@ -187,27 +198,27 @@ class TemplateParser(file: File) extends BasicLexParser(IO.loadUtf8TextFile(file
 
     // Get the member name. We'll use "" as a dummy member name when the object notation is not used.
     val (memberName, fullMemberName) =
-      if (symbol == dot) {
-        getSymbol
-        expect(identifier)
-        val x = symbolValue
+      if (token is Dot) {
+        getToken
+        expect(Identifier)
+        val x = token.value
         if (!x(0).isLower)
           Errors.fatal("Member name _ does not start with a lowercase letter." << x)
         // Position now just after the member name: : $arg.member^
         template.verbatimPos = pos
-        getSymbol
+        getToken
         (x, arg.name + "." + x)
       } else
         ("", arg.name)
 
     val usage =
-      if (symbol == colon) {
-        getSymbol
-        expect(identifier)
-        val x = symbolValue
+      if (token is Colon) {
+        getToken
+        expect(Identifier)
+        val x = token.value
         // Position now just after the usage: : $arg:js^ or $arg.member:js^
         template.verbatimPos = pos
-        getSymbol
+        getToken
         x
       } else
         ""
@@ -236,9 +247,9 @@ class TemplateParser(file: File) extends BasicLexParser(IO.loadUtf8TextFile(file
   }
 
   def processDollar(dollarPos: Int, lineNumber: Int, template: Template) {
-    val argumentName = symbolValue.substring(1)
+    val argumentName = token.value.substring(1)
     val posAfterArgumentName = pos
-    getSymbol
+    getToken
     template.arguments.find(_.name == argumentName) match {
       case None =>
       case Some(argument) =>
@@ -247,18 +258,19 @@ class TemplateParser(file: File) extends BasicLexParser(IO.loadUtf8TextFile(file
     }
   }
 
-  def compile = Errors.trap("Template file _" << file) {
-    getSymbol
-    while (symbol != eof)
-      (symbol, currentTemplate) match {
-        case (`htmlStartComment`, _) =>
+  def compile = Errors.liveTrap("_ at line _" << (file, token.lineNumber)) {
+    getToken
+    while (token isNot Eof) {
+      (token.symbol, currentTemplate) match {
+        case (HtmlStartComment, _) =>
           processHtmlComment
-        case (`identifier`, Some(template)) if (isArgumentName(symbolValue)) =>
-          processDollar(startPos, startLineNumber, template)
+        case (Identifier, Some(template)) if (isArgumentName(token.value)) =>
+          processDollar(startPos, token.lineNumber, template)
         case _ =>
-          getSymbol
+          getToken
       }
-    templateEnd(pos)
+    }
+    endTemplate(pos)
 
     templates.values.toList.sortWith(_.templateName < _.templateName)
   }
