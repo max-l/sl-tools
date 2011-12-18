@@ -10,6 +10,7 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
   val HtmlStartComment = specialSymbol("<!--")
   val HtmlEndComment = specialSymbol("-->")
   val Def, End, PreserveSpaces = idSymbol
+  val Js, Xml, Raw, Field, Label, Control, Help, Error = idSymbol
 
   class TemplateArgumentMember(val name: String, val firstUseLine: Int, val baseType: String)
 
@@ -47,17 +48,15 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
       }
       if (r == "  ")
         r = " "
-      val commentStart = "<!--"
-      val commentEnd = "-->"
       var done = false
       while (!done) {
-        val pos = r.indexOf(commentStart)
+        val pos = r.indexOf(HtmlStartComment.special)
         done = pos == -1
         if (!done) {
-          val z = r.indexOf(commentEnd, pos + commentStart.length)
+          val z = r.indexOf(HtmlEndComment.special, pos + HtmlStartComment.special.length)
           if (z == -1)
             Errors.fatal("Unclosed HTML comment.")
-          r = r.substring(0, pos) + r.substring(z + commentEnd.length)
+          r = r.substring(0, pos) + r.substring(z + HtmlEndComment.special.length)
         }
       }
       r
@@ -195,25 +194,25 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
     val usage =
       if (token is Colon) {
         getToken
-        expect(Identifier)
-        val x = token.value
+        expect(Js, Raw, Xml, Field, Label, Control, Help, Error)
+        val x = token.symbol
         // Position now just after the usage: : $arg:js^ or $arg.member:js^
         template.verbatimPos = pos
         getToken
         x
       } else
-        ""
+        Other
 
     val (baseType, renderingCode) = usage match {
-      case "" => (T_GENERAL_STRING, "os.write(toHtml(_.toString))" << fullMemberName)
-      case "js" => (T_GENERAL_STRING, "os.write(toJs(_.toString, true))" << fullMemberName)
-      case "raw" => (T_GENERAL_STRING, "os.write(_.toString)" << fullMemberName)
-      case "xml" => (T_XML, "os.write(_.toString)" << fullMemberName)
-      case "field" => (T_BASE_FIELD, "ft.transform(_).render(os)" << fullMemberName)
-      case "fieldLabel" => (T_BASE_FIELD, "ft.transform(_).renderLabel(os)" << fullMemberName)
-      case "fieldControl" => (T_BASE_FIELD, "ft.transform(_).renderControl(os)" << fullMemberName)
-      case "fieldHelp" => (T_BASE_FIELD, "ft.transform(_).renderHelp(os)" << fullMemberName)
-      case "fieldError" => (T_BASE_FIELD, "ft.transform(_).renderError(os)" << fullMemberName)
+      case Other => (T_GENERAL_STRING, "os.write(toHtml(_.toString))" << fullMemberName)
+      case Js => (T_GENERAL_STRING, "os.write(toJs(_.toString, true))" << fullMemberName)
+      case Raw => (T_GENERAL_STRING, "os.write(_.toString)" << fullMemberName)
+      case Xml => (T_XML, "os.write(_.toString)" << fullMemberName)
+      case Field => (T_BASE_FIELD, "ft.transform(_).render(os)" << fullMemberName)
+      case Label => (T_BASE_FIELD, "ft.transform(_).renderLabel(os)" << fullMemberName)
+      case Control => (T_BASE_FIELD, "ft.transform(_).renderControl(os)" << fullMemberName)
+      case Help => (T_BASE_FIELD, "ft.transform(_).renderHelp(os)" << fullMemberName)
+      case Error => (T_BASE_FIELD, "ft.transform(_).renderError(os)" << fullMemberName)
       case _ => Errors.fatal("Invalid usage type _ for _." << (usage, fullMemberName))
     }
 
