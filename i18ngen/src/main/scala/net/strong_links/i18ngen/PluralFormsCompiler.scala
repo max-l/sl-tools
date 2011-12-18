@@ -4,42 +4,28 @@ import net.strong_links.core._
 import net.strong_links.core.lex._
 
 class PluralFormsCompiler(data: String) extends LexParser(data) {
-  val N, Plus, Minus, UnaryMinus, Triadic = Value
-  val LogicalNot, Multiply, Divide, Modulo, LessThan, LessThanOrEqual, GreaterThan = Value
-  val GreaterThanOrEqual, Equal, NotEqual, LogicalAnd, LogicalOr, QuestionMark = Value
+  val UnaryMinus = symbol
+  val N = idSymbol
+  val Plus = specialSymbol("+")
+  val Minus = specialSymbol("-")
+  val Triadic = specialSymbol(":")
+  val LogicalNot = specialSymbol("!")
+  val Multiply = specialSymbol("*")
+  val Divide = specialSymbol("/")
+  val Modulo = specialSymbol("%")
+  val LessThan = specialSymbol("<")
+  val LessThanOrEqual = specialSymbol("<=")
+  val GreaterThan = specialSymbol(">")
+  val GreaterThanOrEqual = specialSymbol(">=")
+  val Equal = specialSymbol("==")
+  val NotEqual = specialSymbol("!=")
+  val LogicalAnd = specialSymbol("&&")
+  val LogicalOr = specialSymbol("||")
+  val QuestionMark = specialSymbol("?")
 
   val output = scala.collection.mutable.ListBuffer[String]()
   var stackLevel = -1
   val allocatedRegisters = scala.collection.mutable.Set[Int]()
-
-  override def getWord(word: String) {
-    word match {
-      case "n" => setToken(N)
-      case "N" => setToken(N)
-      case _ => super.getWord(word)
-    }
-  }
-
-  override def getMiscellaneous {
-    currentChar match {
-      case '<' if (nextChar == '=') => twoChar(LessThanOrEqual, "<=")
-      case '>' if (nextChar == '=') => twoChar(GreaterThanOrEqual, ">=")
-      case '=' if (nextChar == '=') => twoChar(Equal, "==")
-      case '!' if (nextChar == '=') => twoChar(NotEqual, "!=")
-      case '&' if (nextChar == '&') => twoChar(LogicalAnd, "&&")
-      case '|' if (nextChar == '|') => twoChar(LogicalOr, "||")
-      case '+' => oneChar(Plus)
-      case '-' => oneChar(Minus)
-      case '*' => oneChar(Multiply)
-      case '/' => oneChar(Divide)
-      case '%' => oneChar(Modulo)
-      case '<' => oneChar(LessThan)
-      case '>' => oneChar(GreaterThan)
-      case '!' => oneChar(LogicalNot)
-      case '?' => oneChar(QuestionMark)
-      case _ => super.getMiscellaneous
-    }
-  }
 
   def compile = Errors.trap("Invalid plural forms expression _" << data) {
     getToken

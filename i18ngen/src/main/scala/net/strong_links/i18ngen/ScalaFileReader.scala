@@ -7,8 +7,11 @@ import java.io.File
 
 class ScalaFileReader(file: File, entryBag: PoEntryBag) extends LexParser(IO.loadUtf8TextFile(file)) {
 
-  val VerbatimString, ScalaLineComments, BlockComments = Value
-  val I18nNeutral, I18nNonNeutral, I18nNeutralCtxt, I18nNonNeutralCtxt = Value
+  val VerbatimString, ScalaLineComments, BlockComments = symbol
+  val I18nNeutral = idSymbol("I18n")
+  val I18nNonNeutral = idSymbol("I18nPlural")
+  val I18nNeutralCtxt = idSymbol("I18nCtxt")
+  val I18nNonNeutralCtxt = idSymbol("I18nPluralCtxt")
 
   def isVerbatimQuotes = currentChar == '"' && nextChar == '"' && nextNextChar == '"'
 
@@ -55,16 +58,6 @@ class ScalaFileReader(file: File, entryBag: PoEntryBag) extends LexParser(IO.loa
       mkString.
       replace("\uFFFE", "\\u")
     setToken(VerbatimString, t)
-  }
-
-  override def getWord(word: String) {
-    word match {
-      case "I18n" => setToken(I18nNeutral)
-      case "I18nPlural" => setToken(I18nNonNeutral)
-      case "I18nCtxt" => setToken(I18nNeutralCtxt)
-      case "I18nPluralCtxt" => setToken(I18nNonNeutralCtxt)
-      case _ => super.getWord(word)
-    }
   }
 
   override def getMiscellaneous {

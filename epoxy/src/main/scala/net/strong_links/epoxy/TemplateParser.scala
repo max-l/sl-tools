@@ -7,7 +7,9 @@ import java.io.File
 
 class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
 
-  val HtmlStartComment, HtmlEndComment, DefStart, DefEnd, PreserveSpaces = Value
+  val HtmlStartComment = specialSymbol("<!--")
+  val HtmlEndComment = specialSymbol("-->")
+  val Def, End, PreserveSpaces = idSymbol
 
   class TemplateArgumentMember(val name: String, val firstUseLine: Int, val baseType: String)
 
@@ -91,27 +93,6 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
     }
   }
 
-  // Methods to get the various symbols.
-  override def getWord(word: String) {
-    word match {
-      case "def" => setToken(DefStart)
-      case "end" => setToken(DefEnd)
-      case "preserveSpaces" => setToken(PreserveSpaces)
-      case s => super.getWord(word)
-    }
-  }
-
-  override def getMiscellaneous {
-    if (currentChar == '<' && nextChar == '!' && nextNextChar == '-' && nextNextNextChar == '-') {
-      move(4)
-      setToken(HtmlStartComment, "<!--")
-    } else if (currentChar == '-' && nextChar == '-' && nextNextChar == '>') {
-      move(3)
-      setToken(HtmlEndComment, "-->")
-    } else
-      super.getMiscellaneous
-  }
-
   var templates = scala.collection.mutable.Map[String, Template]()
   var currentTemplate: Option[Template] = None
 
@@ -173,8 +154,8 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
   def processHtmlComment {
     val savedPos = startPos
     getToken
-    if (token in (DefStart, DefEnd)) {
-      val start = token is DefStart
+    if (token in (Def, End)) {
+      val start = token is Def
       endTemplate(savedPos)
       if (start)
         startTemplate

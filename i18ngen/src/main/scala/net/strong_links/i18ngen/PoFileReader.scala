@@ -14,21 +14,14 @@ class PoFileReader(file: File) extends PoReader(IO.loadUtf8TextFile(file)) {
 
 class PoReader(data: String) extends LexParser(data) {
 
-  val msgid, msgctxt, msgid_plural, msgstr, leftBracket, rightBracket, poLineComments = Value
+  val Msgid, Msgctxt, Msgid_plural, Msgstr = idSymbol
+  val leftBracket = specialSymbol("[")
+  val rightBracket = specialSymbol("]")
+  val poLineComments = symbol
 
   var emptyMsgidFound = false
   val comments = new PoCommentBag
   val obsoleteComments = new CommentBag
-
-  override def getWord(word: String) {
-    word match {
-      case "msgid" => setToken(msgid)
-      case "msgctxt" => setToken(msgctxt)
-      case "msgid_plural" => setToken(msgid_plural)
-      case "msgstr" => setToken(msgstr)
-      case _ => super.getWord(word)
-    }
-  }
 
   override def getMiscellaneous {
     if (currentChar == '"')
@@ -36,11 +29,7 @@ class PoReader(data: String) extends LexParser(data) {
     else if (currentChar == '#' && previousChar == '\n')
       getLineComments(poLineComments)
     else
-      currentChar match {
-        case '[' => oneChar(leftBracket)
-        case ']' => oneChar(rightBracket)
-        case _ => super.getMiscellaneous
-      }
+      super.getMiscellaneous
   }
 
   def isAutomatedComment(s: String) =
@@ -96,13 +85,13 @@ class PoReader(data: String) extends LexParser(data) {
       }
     }
     val (fuzzy, accumulatedComments) = comments.obtainWithFuzzyAndClear
-    val msgCtxt = eatWhen(msgctxt)
-    skip(msgid)
+    val msgCtxt = eatWhen(Msgctxt)
+    skip(Msgid)
     val msgidValue = eatString
-    val msgidPlural = eatWhen(msgid_plural)
+    val msgidPlural = eatWhen(Msgid_plural)
     var lastIndex = -1
     val translations = ListBuffer[String]()
-    expect(msgstr)
+    expect(Msgstr)
     do {
       getToken
       val currentIndex =
@@ -122,8 +111,8 @@ class PoReader(data: String) extends LexParser(data) {
       lastIndex = currentIndex
       val t = eatString
       translations += t
-    } while (token is msgstr)
-    if (msgid == "") {
+    } while (token is Msgstr)
+    if (Msgid == "") {
       if (emptyMsgidFound)
         Errors.fatal("More than one empty 'msgid' found in the Po file.")
       emptyMsgidFound = true
