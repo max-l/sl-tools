@@ -6,22 +6,25 @@ import net.strong_links.core.lex._
 import java.io.File
 import scala.collection.mutable.ListBuffer
 
-class PoFileReader(file: File) extends PoReader(IO.loadUtf8TextFile(file)) {
-  override def parse = Errors.liveTrap("PO _" << file) {
-    super.parse
+class PoReaderResults(val header: PoFileHeader, val poI18nEntries: List[Po18nEntry], val obsoleteComments: List[ObsoletePoComment])
+
+class PoFileReader(file: File, languageKey: String) extends PoReader(IO.loadUtf8TextFile(file)) {
+
+  override def parse = Errors.liveTrap("_" << file) {
+    val results = super.parse
+    results
   }
 }
 
 class PoReader(data: String) extends LexParser(data) {
 
+  val comments = new PoComments
+  val obsoleteComments = new scala.collection.mutable.ListBuffer[ObsoletePoComment]
+  val po18nEntries = new scala.collection.mutable.ListBuffer[Po18nEntry]
   val Msgid, Msgctxt, Msgid_plural, Msgstr = idSymbol
   val leftBracket = specialSymbol("[")
   val rightBracket = specialSymbol("]")
   val poLineComments = symbol
-
-  var emptyMsgidFound = false
-  val comments = new PoCommentBag
-  val obsoleteComments = new CommentBag
 
   override def getMiscellaneous {
     if (currentChar == '"')
@@ -53,7 +56,7 @@ class PoReader(data: String) extends LexParser(data) {
         done = !(currentChar == '#' && nextChar == '~')
         super.getToken
       }
-      obsoleteComments.add(new ObsoletePoComment(sb.toString))
+      obsoleteComments.append(new ObsoletePoComment(sb.toString))
     } else
       super.getToken
   }
@@ -75,7 +78,7 @@ class PoReader(data: String) extends LexParser(data) {
       t
   }
 
-  private def recoverEntry: PoEntry = {
+  private def getPo18nEntry: Po18nEntry = {
     def eatWhen(sym: LexSymbol) = {
       if (token is sym) {
         getToken
@@ -112,31 +115,34 @@ class PoReader(data: String) extends LexParser(data) {
       val t = eatString
       translations += t
     } while (token is Msgstr)
-    if (Msgid == "") {
-      if (emptyMsgidFound)
-        Errors.fatal("More than one empty 'msgid' found in the Po file.")
-      emptyMsgidFound = true
-    }
-    new PoEntry(accumulatedComments, List[PoReference](), msgCtxt, msgidValue, msgidPlural, translations.toList, fuzzy)
+    new Po18nEntry(msgCtxt, msgidValue, msgidPlural, accumulatedComments, translations.toList, Nil, fuzzy)
   }
 
   def parse = Errors.liveTrap("Line _" << token.lineNumber) {
-    val entriesBuffer = ListBuffer[PoEntry]()
-    var previousHeaderLine = 0
-    var header: Option[PoEntry] = None
+    val b = ListBuffer[Po18nEntry]()
     getToken
-    while (token isNot Eof) {
-      val e = recoverEntry
-      if (e.hasSomeTranslations)
-        entriesBuffer += e
-      if (e.msgid == "") {
-        if (header != None)
-          Errors.fatal("The Po file header entry (marked by a msgid \"\") appears twice, it first " +
-            "appeared around line _." << previousHeaderLine)
-        header = Some(e)
-        previousHeaderLine = token.lineNumber
-      }
-    }
-    (header, entriesBuffer.toList, obsoleteComments.obtainAndClear)
+    while (token isNot Eof)
+      b += getPo18nEntry
   }
 }
+//
+//    
+//    val poFileReader = new PoFileReader(poFile)
+//
+//    // Get the entries in the original PO file, along with obsolete comments. 
+//    val (possibleHeaderEntry, recoveredEntriesWithTranslations, obsoleteComments) =
+//      poFileReader.parse
+//
+//    // Make sure we have a file header
+//    val headerEntry = possibleHeaderEntry match {
+//      case None => Errors.fatal("Missing Po file header.")
+//      case Some(e) => e
+//    }
+//
+//    // Extract some run-time parameters from the Po file header. 
+//    val poHeader = new PoFileHeader(headerEntry, languageKey)
+//    val (nbPluralForms, pluralForms) = poHeader.getPluralInformation
+//    logDebug("Nb plural forms: _" << nbPluralForms)
+//    logDebug("Plural forms: _" << pluralForms)
+//
+//    new PoFileLoadInfo(recoveredEntriesWithTranslations, obsoleteComments, nbPluralForms, pluralForms)

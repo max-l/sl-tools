@@ -1,6 +1,7 @@
 package net.strong_links.epoxy
 
 import net.strong_links.core._
+import net.strong_links.core.codegen._
 
 import java.io.File
 
@@ -41,5 +42,19 @@ abstract class EpoxyScanner extends CodeGeneration with Logging {
     logDebug("_ files provided to SBT: _" << (filesCreated.length, filesCreated))
 
     filesCreated.toList
+  }
+
+  import CmdLine._
+
+  def main(args: Array[String], inputDirectoryLabel: String) {
+
+    CmdLine(this, args).run(
+      fileParameter("input directory", inputDirectoryLabel),
+      fileParameter("output directory", "Generated code root directory."),
+      stringSwitch("root-package", "root package name", "Root package name."),
+      switch("rebuild", "Always rebuild all output files.")) {
+        (inputDirectory, rootPackage, outputDirectory, rebuild) =>
+          run(inputDirectory, rootPackage, outputDirectory, rebuild)
+      }
   }
 }

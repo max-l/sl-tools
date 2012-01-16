@@ -5,9 +5,9 @@ import net.strong_links.core.lex._
 
 import java.io.File
 
-class ScalaFileReader(file: File, entryBag: PoEntryBag) extends LexParser(IO.loadUtf8TextFile(file)) {
+class ScalaFileReader(file: File, scalaI18nCalls: scala.collection.mutable.ListBuffer[ScalaI18nCall]) extends LexParser(IO.loadUtf8TextFile(file)) {
 
-  val VerbatimString, ScalaLineComments, BlockComments = symbol
+  val ScalaLineComments, BlockComments = symbol
   val I18nNeutral = idSymbol("I18n")
   val I18nNonNeutral = idSymbol("I18nPlural")
   val I18nNeutralCtxt = idSymbol("I18nCtxt")
@@ -57,30 +57,29 @@ class ScalaFileReader(file: File, entryBag: PoEntryBag) extends LexParser(IO.loa
       map(escape).
       mkString.
       replace("\uFFFE", "\\u")
-    setToken(VerbatimString, t)
+    setToken(CharacterString, t)
   }
 
   override def getMiscellaneous {
-    if (currentChar == '"')
+    if (isVerbatimQuotes)
+      getVerbatimString
+    else if (currentChar == '"')
       getString
     else if (isBlockCommentStart)
       getBlockComments
-    else if (isVerbatimQuotes)
-      getVerbatimString
     else if (currentChar == '/' && nextChar == '/')
       getLineComments(ScalaLineComments)
     else
       super.getMiscellaneous
   }
 
-  // Treat verbatim strings as normal strings.
   def eatString = {
-    expect(VerbatimString, CharacterString)
+    expect(CharacterString)
     eatAnyToken
   }
 
   // Comments accumulated in the file. We ignore comments that are not within 5 lines of each other.
-  val comments = new FlushableCommentBag(5)
+  val comments = new ScalaComments(5)
 
   var entryStartLineNumber = 0
 
@@ -88,9 +87,7 @@ class ScalaFileReader(file: File, entryBag: PoEntryBag) extends LexParser(IO.loa
     val msgCtxt = if (withContext) { val ctx = eatString; skip(Comma); Some(ctx.value) } else None
     val msgidValue = eatString.value
     val msgPlural = if (withPlural) { skip(Comma); Some(eatString.value) } else None
-    val reference = new PoReference(file.getAbsolutePath, entryStartLineNumber)
-    val e = new PoI18nCall(comments.obtainAtLine(lineNumber), Some(reference), msgCtxt, msgidValue, msgPlural)
-    entryBag.merge(e)
+    scalaI18nCalls += new ScalaI18nCall(msgCtxt, msgidValue, msgPlural, comments.obtainAtLine(lineNumber), file, entryStartLineNumber)
   }
 
   // We assume that it is a real I18n usage when the identified I18n symbol is followed by a right
@@ -100,17 +97,17 @@ class ScalaFileReader(file: File, entryBag: PoEntryBag) extends LexParser(IO.loa
     getToken
     if (token is LeftParenthesis) {
       getToken
-      if (token in (CharacterString, VerbatimString))
+      if (token in (CharacterString))
         add(withContext, withPlural, token.lineNumber)
     }
   }
 
-  def scan {
+  def parse = Errors.liveTrap("_, line _" << (file, token.lineNumber)) {
     getToken
     while (token isNot Eof) {
       token.symbol match {
         case ScalaLineComments if token.value.startsWith("///") =>
-          comments.addAtLine(new ScalaPoComment(token.value.substring(3)), token.lineNumber)
+          comments.addAtLine(new ScalaComment(token.value.substring(3)), token.lineNumber)
           getToken
         case I18nNeutral =>
           tryAdd(false, false)

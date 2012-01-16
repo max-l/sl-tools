@@ -2,11 +2,10 @@ package net.strong_links.epoxy
 
 import net.strong_links.core._
 import java.io.File
-import net.strong_links.i18ngen.I18ngen
 
 object SbtI18ngenRunner {
   def apply(localizations: List[I18nLocalization], packageName: String, inputDirectory: File, outputDirectory: File, searchNewI18n: Boolean) = {
-    I18ngen.run(localizations, packageName, inputDirectory, outputDirectory)
+    // I18ngen.run(localizations, packageName, inputDirectory, outputDirectory)
   }
 }
 

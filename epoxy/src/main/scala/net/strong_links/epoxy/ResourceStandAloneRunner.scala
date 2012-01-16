@@ -2,11 +2,7 @@ package net.strong_links.epoxy
 
 import net.strong_links.core._
 
-object ResourceStandAloneRunner extends StandAloneRunner {
+object ResourceStandAloneRunner extends ResourceScanner {
 
-  def programName = "ResourceStandAloneRunner"
-  def inputDirectoryLabel = "Resource root directory."
-  def outputDirectoryLabel = "Generated code root directory."
-
-  def main(args: Array[String]): Unit = super.main(args)(new ResourceScanner)
+  def main(args: Array[String]): Unit = main(args, "Resource root directory.")
 }

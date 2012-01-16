@@ -4,14 +4,14 @@ import net.strong_links.core._
 
 import java.io.File
 
-class PoFileWriter(file: File, nbPluralForms: Int, entries: List[PoEntry], backupComments: List[PoComment]) {
+class PoFileWriter(file: File, nbPluralForms: Int, entries: List[Po18nEntry], backupComments: List[PoComment]) {
 
   private val cs = new CharStream
 
   def generateAndClose {
     var missingTranslations = 0
     for (e <- entries) {
-      new PoEntryWriter(e, cs).write
+      cs.print(e.toString)
       if (e.translations == Nil)
         missingTranslations += 1
     }

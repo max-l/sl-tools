@@ -10,19 +10,25 @@ object I18ngenStandAloneRunner extends Logging {
 
   def main(args: Array[String]) = {
 
-    CmdLine(this, args, List(help("Examples of localizations: en,fr,en_uk:en,fr_ca:fr"))).run(
-      intSwitch("drums", "nb of drums", "Number of drums owned."),
+    CmdLine(this, args, List(help("Example of localizations: fr,en_uk:en,fr_ca:fr"),
+      help("Example of package code language: en"))).run(
+      stringParameter("action", "Action name (catalog, merge, generate)"),
+      stringParameter("package name", "Name of the package (ex: com.company.xyz)."),
+      stringParameter("package code language", "Localization of package code."),
       stringParameter("localizations", "List of localizations to generate."),
-      stringParameter("package name", "Name of the package (ex: com.company.xyz)"),
-      stringParameter("package code language", "Localization of package code"),
-      fileParameter("input directory", "Root directory for the package."),
-      fileParameter("output directory", "Root directory for the generated files")) {
-        (xxx, localizationsList, packageName, codeLanguage, inputDirectory, outputDirectory) =>
-          val codeLocalization = I18nUtil.makeCodeLocalizationsFrom(codeLanguage)
-          logDebug("Package code localization: _" << codeLocalization)
-          val localizations = I18nUtil.makeLocalizationsFrom(codeLocalization, localizationsList)
-          logDebug("Localizations: _" << localizations)
-          I18ngen.run(localizations, packageName, inputDirectory, outputDirectory)
+      fileParameter("root source directory", "Root source directory."),
+      fileParameter("root output directory", "Root output directory.")) {
+        (action, packageName, codeLanguage, localizationsStr, inputDirectory, outputDirectory) =>
+          val runConfig = new RunConfig(packageName, codeLanguage, localizationsStr, inputDirectory, outputDirectory)
+          val i18ngen = new I18nGen(runConfig)
+          action match {
+            case "catalog" =>
+            case "merge" =>
+              i18ngen.merge
+            case "generate" =>
+            case other =>
+              Errors.fatal("Invalid action _." << action)
+          }
       }
   }
 }
