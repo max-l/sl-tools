@@ -42,7 +42,7 @@ class TemplateScanner extends EpoxyScanner with Logging {
     }
     val objectName = className
     val deltaPath = IO.getRelativePath(rootDirectory, file.getParentFile)
-    val outputDirectoryName = outputDirectory.getCanonicalPath + IO.dirSeparator + addedPath + deltaPath
+    val outputDirectoryName = outputDirectory.path + IO.dirSeparator + addedPath + deltaPath
     IO.createDirectory(new File(outputDirectoryName), true)
     val outputFile = new File(outputDirectoryName + IO.dirSeparator + className + ".scala")
     val generate =

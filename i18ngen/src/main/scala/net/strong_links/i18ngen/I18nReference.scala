@@ -6,10 +6,10 @@ import java.io.File
 
 class I18nReference(val file: File, val lineNumber: Int) extends Ordered[I18nReference] {
 
-  override def toString = "File _, line _" << (file.getCanonicalPath, lineNumber)
+  override def toString = "File _, line _" << (file.path, lineNumber)
 
   def compare(that: I18nReference) = {
-    val x = this.file.getCanonicalPath compare that.file.getCanonicalPath
+    val x = this.file.path compare that.file.path
     if (x == 0)
       this.lineNumber compare that.lineNumber
     else
@@ -17,5 +17,5 @@ class I18nReference(val file: File, val lineNumber: Int) extends Ordered[I18nRef
   }
 
   def asPoComment: String =
-    "#: _:_\n" << (file.getCanonicalPath, lineNumber)
+    "#: _:_\n" << (file.path, lineNumber)
 }

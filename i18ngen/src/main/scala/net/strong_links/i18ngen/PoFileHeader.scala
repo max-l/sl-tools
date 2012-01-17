@@ -4,12 +4,12 @@ import net.strong_links.core._
 
 object PoFileHeader {
 
-  def makeDefault(i18nLocalization: I18nLocalization) = {
+  def makeDefault(i18nLocalization: I18nLocalization): String = {
     import i18nLocalization._
     """|msgid ""
          |msgstr ""
          |"Project-Id-Version: _\n"
-         |"PO-Revision-Date: YYYY-MM-DD HH:MI+ZONE\n"
+         |"PO-Revision-Date: _\n"
          |"Language: _\n"
          |"Language-Team: _ <email@address>\n"
          |"Last-Translator: Full Name <email@address>\n"
@@ -17,7 +17,7 @@ object PoFileHeader {
          |"Content-Type: text/plain; charset=UTF-8\n"
          |"Content-Transfer-Encoding: 8bit\n"
          |"Plural-Forms: _\n"
-         |""".stripMargin << (packageName, languageKey, languageKey, usePluralRulePoString)
+         |""".stripMargin << (packageName, Util.nowAsStringWithTimeDelta, i18nLanguageKey, i18nLanguageKey, usePluralRulePoString)
   }
 }
 
@@ -57,6 +57,16 @@ class PoSplitter(s: String, splitWith: Char, subSplitWith: Char) {
   }
 }
 
+object PoPluralForm {
+  def split(pluralForm: String) = {
+    val ps = new PoSplitter(pluralForm, ';', '=')
+    val nPlurals = try ps.get("nplurals").toInt catch {
+      case e => Errors.fatal(e, "Invalid number _ found in the Plural-Forms segment." << ps.get("nplurals"))
+    }
+    (nPlurals, ps.get("plural"))
+  }
+}
+
 class PoFileHeader(entry: Po18nEntry, languageKey: String) {
 
   Errors.trap("Invalid Po file header.") {
@@ -67,11 +77,7 @@ class PoFileHeader(entry: Po18nEntry, languageKey: String) {
         val s = new PoSplitter(translation, '\n', ':')
         if (s.get("Language") != languageKey)
           Errors.fatal("Found language key _ while _ was expected." << (s.get("Language"), languageKey))
-        val ps = new PoSplitter(s.get("Plural-Forms"), ';', '=')
-        val nPlurals = try ps.get("nplurals").toInt catch {
-          case e => Errors.fatal(e, "Invalid number _ found in the Plural-Forms segment." << ps.get("nplurals"))
-        }
-        (nPlurals, ps.get("plural"))
+        PoPluralForm.split(s.get("Plural-Forms"))
       case _ =>
         Errors.fatal("_ translations found while only one was expected." << entry.translations.length)
     }

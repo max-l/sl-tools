@@ -8,12 +8,9 @@ import scala.collection.mutable.ListBuffer
 
 class PoReaderResults(val header: PoFileHeader, val poI18nEntries: List[Po18nEntry], val obsoleteComments: List[ObsoletePoComment])
 
-class PoFileReader(file: File, languageKey: String) extends PoReader(IO.loadUtf8TextFile(file)) {
+class PoFileReader(file: File, i18nLocalization: I18nLocalization) extends PoReader(IO.loadUtf8TextFile(file)) {
 
-  override def parse = Errors.liveTrap("_" << file) {
-    val results = super.parse
-    results
-  }
+  override def parse = Errors.liveTrap("_" << file) { super.parse }
 }
 
 class PoReader(data: String) extends LexParser(data) {

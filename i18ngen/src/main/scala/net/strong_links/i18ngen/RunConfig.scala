@@ -5,42 +5,52 @@ import net.strong_links.core.codegen._
 
 import java.io.File
 
-class RunConfig(val packageName: String, codeLanguage: String, localizationsStr: String, val inputRootDirectory: File, val outputRootDirectory: File) extends Logging with CodeGeneration {
+class RunConfig(val packageName: String, languageKey: String, localizationsStr: String, val inputRootDirectory: File, val outputRootDirectory: File) extends Logging with CodeGeneration {
 
-  class info(val language: String, val country: Option[String], val parent: Option[String], val originalData: String)
+  class Info(val i18nLanguageKey: I18nLanguageKey, val parentI18nLanguageKey: Option[I18nLanguageKey])
 
-  val codeLocalization = I18nCodeLocalization.apply(packageName, codeLanguage)
+  val codeLocalization = I18nCodeLocalization(packageName, I18nLanguageKey.from(languageKey))
 
-  val (masters, subs) = splitLocalizations.partition(_.parent == None)
+  val infos = Util.split(localizationsStr, ",").map(_.trim).filter(!_.isEmpty).map { s =>
+    Errors.trap("Invalid language/variant specification _" << s) {
+      val (i18nLanguageKey, parentI18nLanguageKey) = if (s.contains(':')) {
+        val (lk, plk) = Util.splitTwo(s, ':')
+        (I18nLanguageKey.from(lk), Some(I18nLanguageKey.from(plk)))
+      } else
+        (I18nLanguageKey.from(s), None)
+      new Info(i18nLanguageKey, parentI18nLanguageKey)
+    }
+  }
 
-  val masterLocalizations = masters.map(m => new I18nLocalization(packageName, m.language, m.country, None))
+  val (masterInfos, subInfos) = infos.partition(_.parentI18nLanguageKey == None)
+
+  val masterLocalizations = masterInfos.map(m => new I18nLocalization(packageName, m.i18nLanguageKey, None))
 
   val subLocalizations = {
     val allMasterLocalizations = codeLocalization :: masterLocalizations
-    subs.map(s =>
-      s.parent match {
-        case None => Errors.fatal("No parent for sub-localization.")
-        case Some(ps) =>
-          allMasterLocalizations.find(_.language == ps) match {
-            case None => Errors.fatal("Master localization _ not found for sublocalization _." << (ps, s.originalData))
-            case Some(m) => new I18nLocalization(packageName, s.language, s.country, Some(m))
+    subInfos.map(s =>
+      s.parentI18nLanguageKey match {
+        case Some(plk) =>
+          allMasterLocalizations.find(_.i18nLanguageKey == plk) match {
+            case None => Errors.fatal("Master localization _ not found for sublocalization _." << (plk, s.i18nLanguageKey))
+            case Some(m) => new I18nLocalization(packageName, s.i18nLanguageKey, Some(m))
           }
+        case None => Errors.fatal("No parent for sub-localization.")
       })
   }
 
-  val localizations =
-    masterLocalizations ::: subLocalizations
+  val allLocalizations = masterLocalizations ::: subLocalizations
 
-  I18nUtil.checkUniqueness(codeLocalization, localizations)
+  I18nUtil.checkUniqueness(codeLocalization, allLocalizations)
 
   logDebug("Package name: _" << packageName)
   logDebug("Code localization: _" << codeLocalization)
-  logDebug("Localizations: _" << localizations)
+  logDebug("Localizations: _" << allLocalizations)
 
   val segments = Util.split(packageName, '.')
   checkPackageSegments(segments)
 
-  private def make(rootdir: File) = new File(rootdir.getCanonicalPath + IO.dirSeparator + segments.mkString(IO.dirSeparator))
+  private def make(rootdir: File) = new File(rootdir.path + IO.dirSeparator + segments.mkString(IO.dirSeparator))
 
   val inputDirectory = make(inputRootDirectory)
   val outputDirectory = make(outputRootDirectory)
@@ -50,29 +60,4 @@ class RunConfig(val packageName: String, codeLanguage: String, localizationsStr:
 
   IO.checkForExistingDirectory(inputDirectory)
   IO.createDirectory(outputDirectory, true)
-
-  def splitLocalizations = Util.split(localizationsStr, ",").map(_.trim).filter(!_.isEmpty).map { s =>
-    Errors.trap("Invalid language/variant specification _" << s) {
-      def split(s: String, on: Char) = if (s.contains(on)) Util.splitTwo(s, on) else (s, "")
-      val (id, parentLanguage) = split(s, ':')
-      val (language, country) = split(id, '_')
-      def check(s: String, f: String => String, what: String): Option[String] = {
-        val st = s.trim
-        if (st == "")
-          None
-        else {
-          if (st.length != 2)
-            Errors.fatal("Invalid _ code _ (not two characters)." << (what, st))
-          Some(f(st))
-        }
-      }
-      def toLanguage = check(language, _.toLowerCase, "language")
-      def toCountry = check(country, _.toUpperCase, "country")
-      def toParentLanguage = check(parentLanguage, _.toLowerCase, "parent language")
-      toLanguage match {
-        case None => Errors.fatal("Missing language code.")
-        case Some(language) => new info(language, toCountry, toParentLanguage, s)
-      }
-    }
-  }
 }

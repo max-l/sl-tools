@@ -14,12 +14,12 @@ object I18ngenStandAloneRunner extends Logging {
       help("Example of package code language: en"))).run(
       stringParameter("action", "Action name (catalog, merge, generate)"),
       stringParameter("package name", "Name of the package (ex: com.company.xyz)."),
-      stringParameter("package code language", "Localization of package code."),
+      stringParameter("package code language key", "Language key for the package code."),
       stringParameter("localizations", "List of localizations to generate."),
       fileParameter("root source directory", "Root source directory."),
       fileParameter("root output directory", "Root output directory.")) {
-        (action, packageName, codeLanguage, localizationsStr, inputDirectory, outputDirectory) =>
-          val runConfig = new RunConfig(packageName, codeLanguage, localizationsStr, inputDirectory, outputDirectory)
+        (action, packageName, languageKey, localizationsStr, inputDirectory, outputDirectory) =>
+          val runConfig = new RunConfig(packageName, languageKey, localizationsStr, inputDirectory, outputDirectory)
           val i18ngen = new I18nGen(runConfig)
           action match {
             case "catalog" =>

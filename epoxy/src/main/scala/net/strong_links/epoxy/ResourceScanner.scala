@@ -30,7 +30,7 @@ class ResourceScanner extends EpoxyScanner {
     else
       packageName
     val objectName = className
-    val outputDirectoryName = outputDirectory.getCanonicalPath + IO.dirSeparator + segments.mkString(IO.dirSeparator)
+    val outputDirectoryName = outputDirectory.path + IO.dirSeparator + segments.mkString(IO.dirSeparator)
     val outputFile = new File(outputDirectoryName + IO.dirSeparator + "package.scala")
     val directoryForPackage = segments.mkString(IO.dirSeparator)
 
@@ -98,7 +98,7 @@ class ResourceScanner extends EpoxyScanner {
 
     val fname = "rescomp.cache"
     val resCompCacheFile = IO.makeFile(directory, fname)
-    val resCompCacheFileName = resCompCacheFile.getCanonicalPath
+    val resCompCacheFileName = resCompCacheFile.path
 
     // Check if there are files in this directory.
     val files = directory.listFiles.toList.filter(_.isFile).filter(_.getName != resCompCacheFileName)

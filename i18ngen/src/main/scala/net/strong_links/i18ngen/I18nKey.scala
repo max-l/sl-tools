@@ -23,7 +23,7 @@ object I18nKey {
         Errors.fatal("Empty _ string." << what)
   }
 
-  def group[T <: I18nKey, V](items: List[T])(errorHandler: List[T] => LoggingParameter)(work: (Option[String], String, Option[String], List[T]) => V) = {
+  def group[T <: I18nKey, V](items: List[T])(errorHandler: List[T] => LoggingParameter)(work: (Option[String], String, Option[String], List[T]) => V) =
     for (
       ((msgCtxt, msgid), calls) <- items.groupBy(i => (i.msgCtxt, i.msgid)).toList;
       distinctMsgidPlurals = calls.map(_.msgidPlural).distinct
@@ -38,7 +38,6 @@ object I18nKey {
           ("_." <<< distinctMsgidPlurals)
         Errors.fatal(msg, errorHandler(calls))
     }
-  }
 }
 
 class I18nKey(val msgCtxt: Option[String], val msgid: String,
