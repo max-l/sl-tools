@@ -11,7 +11,7 @@ class ResourceScanner extends EpoxyScanner {
   def loadResCompCacheFile(resCompCacheFile: File): List[FileInfo] = {
     if (resCompCacheFile.exists) {
       if (!resCompCacheFile.isFile)
-        Errors.fatal("File _ is not a file." << resCompCacheFile)
+        Errors.fatal("_ is not a file." << resCompCacheFile)
       val data = IO.loadUtf8TextFile(resCompCacheFile).replace("\r\n", "\n")
       for (line <- Util.split(data).zipWithIndex.filter(!_._1.isEmpty))
         yield FileInfo(resCompCacheFile, line._1, line._2 + 1)
@@ -38,7 +38,7 @@ class ResourceScanner extends EpoxyScanner {
 
     for (e <- loadResCompCacheFile(resCompCacheFile)) {
       if (oldMap.contains(e.name))
-        Errors.fatal("File name _ exists twice in cache file _." << (e.name, resCompCacheFile))
+        Errors.fatal("File name _ exists twice in cache _." << (e.name, resCompCacheFile))
       oldMap(e.name) = e
     }
 
@@ -78,7 +78,7 @@ class ResourceScanner extends EpoxyScanner {
         true
 
     if (generate) {
-      logDebug("Generating new file _." <<< outputFile)
+      logDebug("Generating new _." <<< outputFile)
       generateScalaFile(entries, outputFile, directory, masterPackageName, packageName, className, objectName, false, Nil) { e =>
         val cs = new LeveledCharStream
         cs.println("def _ = {" << e.makeFunctionName(directory))
@@ -90,7 +90,7 @@ class ResourceScanner extends EpoxyScanner {
         cs.close
       }
     } else
-      logDebug("File _ is up-to-date." <<< outputFile)
+      logDebug("_ is up-to-date." <<< outputFile)
     outputFile
   }
 

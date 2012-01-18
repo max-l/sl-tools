@@ -6,7 +6,7 @@ import net.strong_links.core.lex._
 import java.io.File
 import scala.collection.mutable.ListBuffer
 
-class PoReaderParseResults(val poHeaderEntry: Po18nEntry, val poI18nEntries: List[Po18nEntry], val obsoleteComments: List[ObsoletePoComment])
+class PoReaderParseResults(val poHeaderEntry: PoI18nEntry, val poI18nEntries: List[PoI18nEntry], val obsoleteComments: List[ObsoletePoComment])
 
 class PoFileReader(file: File) extends PoReader(IO.loadUtf8TextFile(file))
 
@@ -71,13 +71,15 @@ class PoReader(data: String) extends LexParser(data) {
     val t = super.eatToken(CharacterString).value
     if (token is CharacterString) {
       val sb = new StringBuilder(t)
-      do sb.append(super.eatToken(CharacterString).value) while (token is CharacterString)
+      do
+        sb.append(super.eatToken(CharacterString).value)
+      while (token is CharacterString)
       sb.toString
     } else
       t
   }
 
-  private def getPo18nEntry: Po18nEntry = {
+  private def getPo18nEntry: PoI18nEntry = {
     def eatWhen(sym: LexSymbol) = {
       if (token is sym) {
         getToken
@@ -115,21 +117,21 @@ class PoReader(data: String) extends LexParser(data) {
       val t = eatString
       translations += t
     } while (token is Msgstr)
-    new Po18nEntry(msgCtxt, msgidValue, msgidPlural, accumulatedComments, translations.toList, Nil, fuzzy)
+    new PoI18nEntry(msgCtxt, msgidValue, msgidPlural, accumulatedComments, translations.toList, Nil, fuzzy)
   }
 
-  def whereItFailed = if (startLineNumber == token.lineNumber)
+  def whereItFailed: String = if (startLineNumber == token.lineNumber)
     "Line _" << startLineNumber
   else
     "Near lines _ to _" << (startLineNumber, token.lineNumber)
 
   def parse = Errors.liveTrap(whereItFailed) {
-    val po18nEntries = scala.collection.mutable.ListBuffer[Po18nEntry]()
+    val po18nEntries = scala.collection.mutable.ListBuffer[PoI18nEntry]()
     getToken
     while (token isNot Eof)
       po18nEntries += getPo18nEntry
 
-    val (emptyEntries, nonEmptyEntries) = po18nEntries.toList.partition(_.msgid == "")
+    val (emptyEntries, nonEmptyEntries) = po18nEntries.toList.partition(_.key.msgid == "")
 
     val headerPoEntry = emptyEntries match {
       case List(h) => h

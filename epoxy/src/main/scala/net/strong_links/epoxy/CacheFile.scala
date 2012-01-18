@@ -12,7 +12,7 @@ object FileInfo {
 
   def apply(file: File, line: String, lineNumber: Int) = {
     def error(what: LoggingParameter*) = {
-      val e = "Invalid data found in file _, line _" << (file, lineNumber)
+      val e = "Invalid data found in _, line _" << (file, lineNumber)
       Errors.fatal(List(e: LoggingParameter) ::: what.toList: _*)
     }
     val segments = Util.nsplit(line, 3, '\t')
@@ -37,7 +37,7 @@ class FileInfo(val name: String, val uuid: String, val lastModified: Long) {
     toFullName(name, uuid)
   }
 
-  def makeFunctionName(directory: File) = Errors.trap("File _ located in directory _." << (name, directory)) {
+  def makeFunctionName(directory: File) = Errors.trap("_ located in _." << (name, directory)) {
     def cleanUnderscores(s: String): String = if (!s.contains("__")) s else cleanUnderscores(s.replace("__", "_"))
     val x = cleanUnderscores(Convert.generic(name.toLowerCase, None) {
       case c if c.isLetterOrDigit => null

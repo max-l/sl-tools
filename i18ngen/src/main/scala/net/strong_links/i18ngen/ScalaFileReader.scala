@@ -35,14 +35,12 @@ class ScalaFileReader(file: File, scalaI18nCalls: scala.collection.mutable.ListB
   }
 
   private def getVerbatimString {
-    def escape(c: Char) = {
-      c match {
-        case '\n' => "\\n"
-        case '\'' => "\\'"
-        case '"' => "\\\""
-        case '\\' => "\\\\"
-        case _ => c.toString
-      }
+    def escape(c: Char) = c match {
+      case '\n' => "\\n"
+      case '\'' => "\\'"
+      case '"' => "\\\""
+      case '\\' => "\\\\"
+      case _ => c.toString
     }
     move(3)
     val s = eatUntil(isVerbatimQuotes)
@@ -81,9 +79,7 @@ class ScalaFileReader(file: File, scalaI18nCalls: scala.collection.mutable.ListB
   // Comments accumulated in the file. We ignore comments that are not within 5 lines of each other.
   val comments = new ScalaComments(5)
 
-  var entryStartLineNumber = 0
-
-  def add(withContext: Boolean, withPlural: Boolean, lineNumber: Int) {
+  def add(withContext: Boolean, withPlural: Boolean, lineNumber: Int, entryStartLineNumber: Int) {
     val msgCtxt = if (withContext) { val ctx = eatString; skip(Comma); Some(ctx.value) } else None
     val msgidValue = eatString.value
     val msgPlural = if (withPlural) { skip(Comma); Some(eatString.value) } else None
@@ -93,16 +89,16 @@ class ScalaFileReader(file: File, scalaI18nCalls: scala.collection.mutable.ListB
   // We assume that it is a real I18n usage when the identified I18n symbol is followed by a right
   // parenthesis and a literal string. Else we simply ignore.
   def tryAdd(withContext: Boolean, withPlural: Boolean) {
-    entryStartLineNumber = token.lineNumber
+    val entryStartLineNumber = token.lineNumber
     getToken
     if (token is LeftParenthesis) {
       getToken
-      if (token in (CharacterString))
-        add(withContext, withPlural, token.lineNumber)
+      if (token is CharacterString)
+        add(withContext, withPlural, token.lineNumber, entryStartLineNumber)
     }
   }
 
-  def parse = Errors.liveTrap("_, line _" << (file, token.lineNumber)) {
+  def parse = Errors.liveTrap("_, around line _" << (file, token.lineNumber)) {
     getToken
     while (token isNot Eof) {
       token.symbol match {

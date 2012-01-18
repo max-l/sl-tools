@@ -77,17 +77,18 @@ object PoPluralForm {
   }
 }
 
-class PoFileHeader(entry: Po18nEntry, i18nLocalization: I18nLocalization) {
+class PoFileHeader(entry: PoI18nEntry, i18nLocalization: I18nLocalization) {
 
-  Errors.trap("Invalid Po file header.") {
-    if (entry.msgid != "")
-      Errors.fatal("'msgid' has a value _ while an empty string was expected." << entry.msgid)
-    val (nPlural, pluralForm) = entry.translations match {
+  val (nPlural, pluralForm) = Errors.trap("Invalid Po file header.") {
+    if (entry.key.msgid != "")
+      Errors.fatal("'msgid' has a value _ while an empty string was expected." << entry.key.msgid)
+    entry.translations match {
       case List(singleTranslation) =>
-        val s = new PoSplitter(LexParser.toRealLineFeeds(singleTranslation), '\n', ':')
-        if (s.get("Language") != i18nLocalization.i18nLanguageKey.string)
-          Errors.fatal("Found language key _ while _ was expected." << (s.get("Language"), i18nLocalization.i18nLanguageKey))
-        PoPluralForm.split(s.get("Plural-Forms"))
+        val splitter = new PoSplitter(LexParser.toRealLineFeeds(singleTranslation), '\n', ':')
+        val languageKey = splitter.get("Language")
+        if (languageKey != i18nLocalization.i18nLanguageKey.string)
+          Errors.fatal("Found language key _ while _ was expected." << (languageKey, i18nLocalization.i18nLanguageKey))
+        PoPluralForm.split(splitter.get("Plural-Forms"))
       case _ =>
         Errors.fatal("_ translations found while only one was expected." << entry.translations.length)
     }

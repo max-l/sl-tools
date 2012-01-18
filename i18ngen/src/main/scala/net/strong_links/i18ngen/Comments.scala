@@ -3,7 +3,7 @@ package net.strong_links.i18ngen
 import net.strong_links.core._
 
 abstract class Comment(_value: String) {
-  val value = _value.trim
+  def value = _value.trim
 }
 
 class ScalaComment(value: String) extends Comment(value)
