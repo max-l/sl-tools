@@ -1,9 +1,12 @@
 package net.strong_links.i18ngen
 
 import net.strong_links.core._
+import net.strong_links.core.lex._
 
-class Po18nEntry(msgCtxt: Option[String], msgid: String, msgidPlural: Option[String], val comments: List[Comment], val translations: List[String], val references: List[I18nReference], val fuzzy: Boolean) 
-  extends I18nKey(msgCtxt, msgid, msgidPlural) {
+class Po18nEntry(msgCtxt: Option[String], msgid: String, msgidPlural: Option[String], val comments: List[Comment], val translations: List[String], val references: List[I18nReference], val fuzzy: Boolean)
+  extends I18nKey(msgCtxt, msgid, msgidPlural, true) {
+
+  translations.filter(!_.isEmpty).foreach(t => validate(Some(t), "msgstr"))
 
   override def toString: String = {
     IO.usingCharStream { cs => new PoEntryWriter(cs).write }
@@ -37,21 +40,19 @@ class Po18nEntry(msgCtxt: Option[String], msgid: String, msgidPlural: Option[Str
     }
 
     private def niceString(s: String) = {
-      val x = s.replace("\\\\", "\uFFFF")
-      if (x.contains("\\n"))
-        "\"\n\"" + x.replace("\\n", "\\n\"\n\"").replace("\uFFFF", "\\")
+      val x = LexParser.toRealLineFeeds(s)
+      if (x.contains("\n"))
+        "\"\n\"" + x.replace("\n", "\"\n\"")
       else
         s
     }
 
     private def emitNeutral {
       val it = translations.iterator
-      cs.print("msgid \"_\"\n" << niceString(msgid))
       cs.print("msgstr \"_\"\n" << niceString(getNextTranslation(it)))
     }
 
     private def emitNonNeutral(msgidPlural: String) {
-      cs.print("msgid \"_\"\n" << niceString(msgid))
       cs.print("msgid__plural \"_\"\n" << niceString(msgidPlural))
       val it = translations.iterator
       var i = 0
@@ -72,6 +73,7 @@ class Po18nEntry(msgCtxt: Option[String], msgid: String, msgidPlural: Option[Str
         case None =>
         case Some(c) => cs.print("msgctxt \"_\"\n" << niceString(c))
       }
+      cs.print("msgid \"_\"\n" << niceString(msgid))
       msgidPlural match {
         case None => emitNeutral
         case Some(p) => emitNonNeutral(p)

@@ -1,10 +1,19 @@
 package net.strong_links.i18ngen
 
 import net.strong_links.core._
+import net.strong_links.core.lex._
 
 object PoFileHeader {
 
   def makeDefault(i18nLocalization: I18nLocalization): String = {
+
+    // Try to get the plural rule from the stock localizations we already know about.
+    def pluralRule = try {
+      I18nCodeLocalization(i18nLocalization.packageName, i18nLocalization.i18nLanguageKey).usePluralRulePoString
+    } catch {
+      case _ => "nplurals=???; plural=???"
+    }
+
     import i18nLocalization._
     """|msgid ""
          |msgstr ""
@@ -17,7 +26,7 @@ object PoFileHeader {
          |"Content-Type: text/plain; charset=UTF-8\n"
          |"Content-Transfer-Encoding: 8bit\n"
          |"Plural-Forms: _\n"
-         |""".stripMargin << (packageName, Util.nowAsStringWithTimeDelta, i18nLanguageKey, i18nLanguageKey, usePluralRulePoString)
+         |""".stripMargin << (packageName, Util.nowAsStringWithTimeDelta, i18nLanguageKey, i18nLanguageKey, pluralRule)
   }
 }
 
@@ -27,12 +36,13 @@ class PoSplitter(s: String, splitWith: Char, subSplitWith: Char) {
 
   private val m = scala.collection.mutable.Map[String, String]()
 
-  for (segment <- Util.split(s, splitWith)) Errors.trap("Segment _" << segment) {
-    val (segmentName, segmentValue) = splitAt(segment, subSplitWith)
-    if (m.contains(segmentName))
-      Errors.fatal("Duplicate segment.")
-    m(segmentName) = segmentValue
-  }
+  for (segment <- Util.split(s, splitWith))
+    Errors.trap("Segment _" << segment) {
+      val (segmentName, segmentValue) = splitAt(segment, subSplitWith)
+      if (m.contains(segmentName))
+        Errors.fatal("Duplicate segment.")
+      m(segmentName) = segmentValue
+    }
 
   def splitAt(s: String, at: Char) = {
     def clean(x: String) = {
@@ -67,16 +77,16 @@ object PoPluralForm {
   }
 }
 
-class PoFileHeader(entry: Po18nEntry, languageKey: String) {
+class PoFileHeader(entry: Po18nEntry, i18nLocalization: I18nLocalization) {
 
   Errors.trap("Invalid Po file header.") {
     if (entry.msgid != "")
       Errors.fatal("'msgid' has a value _ while an empty string was expected." << entry.msgid)
     val (nPlural, pluralForm) = entry.translations match {
-      case translation :: Nil =>
-        val s = new PoSplitter(translation, '\n', ':')
-        if (s.get("Language") != languageKey)
-          Errors.fatal("Found language key _ while _ was expected." << (s.get("Language"), languageKey))
+      case List(singleTranslation) =>
+        val s = new PoSplitter(LexParser.toRealLineFeeds(singleTranslation), '\n', ':')
+        if (s.get("Language") != i18nLocalization.i18nLanguageKey.string)
+          Errors.fatal("Found language key _ while _ was expected." << (s.get("Language"), i18nLocalization.i18nLanguageKey))
         PoPluralForm.split(s.get("Plural-Forms"))
       case _ =>
         Errors.fatal("_ translations found while only one was expected." << entry.translations.length)

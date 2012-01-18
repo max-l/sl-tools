@@ -6,22 +6,24 @@ import net.strong_links.core.lex._
 import java.io.File
 import scala.collection.mutable.ListBuffer
 
-class PoReaderResults(val header: PoFileHeader, val poI18nEntries: List[Po18nEntry], val obsoleteComments: List[ObsoletePoComment])
+class PoReaderParseResults(val poHeaderEntry: Po18nEntry, val poI18nEntries: List[Po18nEntry], val obsoleteComments: List[ObsoletePoComment])
 
-class PoFileReader(file: File, i18nLocalization: I18nLocalization) extends PoReader(IO.loadUtf8TextFile(file)) {
-
-  override def parse = Errors.liveTrap("_" << file) { super.parse }
-}
+class PoFileReader(file: File) extends PoReader(IO.loadUtf8TextFile(file))
 
 class PoReader(data: String) extends LexParser(data) {
 
-  val comments = new PoComments
-  val obsoleteComments = new scala.collection.mutable.ListBuffer[ObsoletePoComment]
-  val po18nEntries = new scala.collection.mutable.ListBuffer[Po18nEntry]
+  // Line at which analysis found the start of a PoEntry
+  var startLineNumber = token.lineNumber
+
+  // Additional symbols required for the lexical analysis.
   val Msgid, Msgctxt, Msgid_plural, Msgstr = idSymbol
   val leftBracket = specialSymbol("[")
   val rightBracket = specialSymbol("]")
   val poLineComments = symbol
+
+  // Objects that will be accumulated during the parsing.
+  val comments = new PoComments
+  val obsoleteComments = scala.collection.mutable.ListBuffer[ObsoletePoComment]()
 
   override def getMiscellaneous {
     if (currentChar == '"')
@@ -69,7 +71,7 @@ class PoReader(data: String) extends LexParser(data) {
     val t = super.eatToken(CharacterString).value
     if (token is CharacterString) {
       val sb = new StringBuilder(t)
-      do sb.append(super.eatToken(CharacterString)) while (token is CharacterString)
+      do sb.append(super.eatToken(CharacterString).value) while (token is CharacterString)
       sb.toString
     } else
       t
@@ -85,6 +87,7 @@ class PoReader(data: String) extends LexParser(data) {
       }
     }
     val (fuzzy, accumulatedComments) = comments.obtainWithFuzzyAndClear
+    startLineNumber = token.lineNumber
     val msgCtxt = eatWhen(Msgctxt)
     skip(Msgid)
     val msgidValue = eatString
@@ -115,31 +118,25 @@ class PoReader(data: String) extends LexParser(data) {
     new Po18nEntry(msgCtxt, msgidValue, msgidPlural, accumulatedComments, translations.toList, Nil, fuzzy)
   }
 
-  def parse = Errors.liveTrap("Line _" << token.lineNumber) {
-    val b = ListBuffer[Po18nEntry]()
+  def whereItFailed = if (startLineNumber == token.lineNumber)
+    "Line _" << startLineNumber
+  else
+    "Near lines _ to _" << (startLineNumber, token.lineNumber)
+
+  def parse = Errors.liveTrap(whereItFailed) {
+    val po18nEntries = scala.collection.mutable.ListBuffer[Po18nEntry]()
     getToken
     while (token isNot Eof)
-      b += getPo18nEntry
+      po18nEntries += getPo18nEntry
+
+    val (emptyEntries, nonEmptyEntries) = po18nEntries.toList.partition(_.msgid == "")
+
+    val headerPoEntry = emptyEntries match {
+      case List(h) => h
+      case Nil => Errors.fatal("No header found.")
+      case list => Errors.fatal("_ headers found while only one was expected." << list.length)
+    }
+
+    new PoReaderParseResults(headerPoEntry, nonEmptyEntries, obsoleteComments.toList)
   }
 }
-//
-//    
-//    val poFileReader = new PoFileReader(poFile)
-//
-//    // Get the entries in the original PO file, along with obsolete comments. 
-//    val (possibleHeaderEntry, recoveredEntriesWithTranslations, obsoleteComments) =
-//      poFileReader.parse
-//
-//    // Make sure we have a file header
-//    val headerEntry = possibleHeaderEntry match {
-//      case None => Errors.fatal("Missing Po file header.")
-//      case Some(e) => e
-//    }
-//
-//    // Extract some run-time parameters from the Po file header. 
-//    val poHeader = new PoFileHeader(headerEntry, languageKey)
-//    val (nbPluralForms, pluralForms) = poHeader.getPluralInformation
-//    logDebug("Nb plural forms: _" << nbPluralForms)
-//    logDebug("Plural forms: _" << pluralForms)
-//
-//    new PoFileLoadInfo(recoveredEntriesWithTranslations, obsoleteComments, nbPluralForms, pluralForms)
