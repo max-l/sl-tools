@@ -1,6 +1,7 @@
 package net.strong_links.i18ngen
 
 import net.strong_links.core._
+import java.io.File
 
 class I18nGenMerge(runConfig: RunConfig) extends I18nGen(runConfig) {
 
@@ -23,32 +24,24 @@ class I18nGenMerge(runConfig: RunConfig) extends I18nGen(runConfig) {
 
     val poFile = poFileFor(i18nLocalization)
 
+    logInfo("Merging for language _, _." << (i18nLocalization.i18nLanguageKey.string, poFile))
+
     if (!poFile.exists) {
-      IO.writeUtf8ToFile(poFile, PoFileHeader.makeDefault(i18nLocalization))
+      IO.writeUtf8ToFile(poFile, PoHeaderInfo.makeDefault(i18nLocalization))
       logInfo("_ created with default contents." << poFile)
     }
 
     Errors.trap("_" << poFile) {
 
-      val parseResults = new PoFileReader(poFile).parse
-
-      val fileHeader = new PoFileHeader(parseResults.poHeaderEntry, i18nLocalization)
+      val parseResults = new PoFileReader(poFile, i18nLocalization).parse
 
       // Get the Po entries that have some translations.
       val translatedPoEntries = parseResults.poI18nEntries.filter(_.translations.exists(!_.isEmpty))
-
-      // Check if there are duplicate entries in the PO entries
-      translatedPoEntries.groupBy(_.key).filter(_._2.length > 1).map(_._1.computeForHuman) match {
-        case Nil =>
-        case dups => Errors.fatal("Duplicate entries found: !_" << dups)
-      }
 
       val outputPoEntries = scala.collection.mutable.ListBuffer[PoI18nEntry]()
 
       // Create a fast access map for the translated Po entries.
       val poEntries = (scala.collection.mutable.Map[I18nKey, PoI18nEntry]() /: translatedPoEntries)((m, e) => m += (e.key -> e))
-
-      println(poEntries)
 
       // Process each Scala I18n entry
       for (e <- scalaI18nCallSummaries) {
@@ -63,14 +56,11 @@ class I18nGenMerge(runConfig: RunConfig) extends I18nGen(runConfig) {
         outputPoEntries += newEntry
       }
 
-      println("OUTPUT")
-      println(outputPoEntries)
-
       val finalEntries = parseResults.poHeaderEntry :: outputPoEntries.toList
 
       // Create the new Po file containing the new and recovered strings.
       val newPoFile = IO.createTemporaryFile
-      val freshPoFileWriter = new PoFileWriter(newPoFile, fileHeader.nPlural, finalEntries, Nil)
+      val freshPoFileWriter = new PoFileWriter(newPoFile, parseResults.headerInfo.nPlural, finalEntries, Nil)
       freshPoFileWriter.generate
 
       // The newly merged Po file can now replace the old Po file.

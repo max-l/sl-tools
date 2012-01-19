@@ -26,7 +26,7 @@ object I18ngenStandAloneRunner extends Logging {
             case "merge" =>
               new I18nGenMerge(runConfig).merge
             case "generate" =>
-              Errors.notImplemented
+              new I18nGenGenerate(runConfig).generate
             case other =>
               Errors.fatal("Invalid action _." << action)
           }

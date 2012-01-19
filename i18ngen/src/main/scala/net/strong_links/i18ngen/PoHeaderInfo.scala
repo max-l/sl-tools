@@ -3,7 +3,7 @@ package net.strong_links.i18ngen
 import net.strong_links.core._
 import net.strong_links.core.lex._
 
-object PoFileHeader {
+object PoHeaderInfo {
 
   def makeDefault(i18nLocalization: I18nLocalization): String = {
 
@@ -32,7 +32,7 @@ object PoFileHeader {
 
 class PoSplitter(s: String, splitWith: Char, subSplitWith: Char) {
 
-  import PoFileHeader._
+  import PoHeaderInfo._
 
   private val m = scala.collection.mutable.Map[String, String]()
 
@@ -77,7 +77,7 @@ object PoPluralForm {
   }
 }
 
-class PoFileHeader(entry: PoI18nEntry, i18nLocalization: I18nLocalization) {
+class PoHeaderInfo(entry: PoI18nEntry, i18nLocalization: I18nLocalization) {
 
   val (nPlural, pluralForm) = Errors.trap("Invalid Po file header.") {
     if (entry.key.msgid != "")

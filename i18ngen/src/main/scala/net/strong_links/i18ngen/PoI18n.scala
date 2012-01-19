@@ -9,7 +9,33 @@ class PoI18nEntry(msgCtxt: Option[String], msgid: String, msgidPlural: Option[St
   val key = new I18nKey(msgCtxt, msgid, msgidPlural, true)
 
   if (msgid != "")
-    translations.filter(!_.isEmpty).foreach(t => I18nKey.validate(Some(t), "msgstr"))
+    translations.filter(!_.isEmpty).foreach(t => I18nUtil.validate(Some(t), "msgstr"))
+
+  private def okStatus = "OK"
+
+  def translationStatusIsOK(nPlural: Int) = translationStatus(nPlural) == okStatus
+
+  def translationStatus(nPlural: Int) = {
+    val nRequiredTranslations = if (msgidPlural == None) 1 else nPlural
+    def msg(t: String, n: Int): String =
+      Util.sp("__ _ translation for __." << t, "__ _ translations for __." << t, n) << (n, key)
+    if (msgid == "")
+      okStatus
+    else {
+      val delta = translations.length - nRequiredTranslations
+      if (delta < 0)
+        msg("missing", -delta)
+      else if (delta > 0)
+        msg("extraneous", delta)
+      else {
+        val n = translations.count(_.isEmpty)
+        if (n > 0)
+          msg("empty", n)
+        else
+          okStatus
+      }
+    }
+  }
 
   def generate(nPlural: Int) = IO.usingCharStream { cs => new PoEntryWriter(cs, nPlural).write }
 
@@ -76,7 +102,7 @@ class PoI18nEntry(msgCtxt: Option[String], msgid: String, msgidPlural: Option[St
         case Some(p) => emitNonNeutral(p, it)
       }
       while (it.hasNext)
-        logWarn("Discarded translation: _" << it.next)
+        logWarn("Discarded translation _ for !_." << (it.next, key))
     }
   }
 }

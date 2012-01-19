@@ -82,7 +82,14 @@ class ScalaFileReader(file: File, scalaI18nCalls: scala.collection.mutable.ListB
   def add(withContext: Boolean, withPlural: Boolean, lineNumber: Int, entryStartLineNumber: Int) {
     val msgCtxt = if (withContext) { val ctx = eatString; skip(Comma); Some(ctx.value) } else None
     val msgidValue = eatString.value
-    val msgPlural = if (withPlural) { skip(Comma); Some(eatString.value) } else None
+    val msgPlural = if (withPlural) {
+      skip(Comma)
+      if (token is CharacterString)
+        Some(eatString.value)
+      else
+        Some(msgidValue)
+    } else
+      None
     scalaI18nCalls += new ScalaI18nCall(msgCtxt, msgidValue, msgPlural, comments.obtainAtLine(lineNumber), file, entryStartLineNumber)
   }
 

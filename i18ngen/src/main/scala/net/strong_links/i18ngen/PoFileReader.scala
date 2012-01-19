@@ -6,11 +6,11 @@ import net.strong_links.core.lex._
 import java.io.File
 import scala.collection.mutable.ListBuffer
 
-class PoReaderParseResults(val poHeaderEntry: PoI18nEntry, val poI18nEntries: List[PoI18nEntry], val obsoleteComments: List[ObsoletePoComment])
+class PoReaderParseResults(val poHeaderEntry: PoI18nEntry, val headerInfo: PoHeaderInfo, val poI18nEntries: List[PoI18nEntry], val obsoleteComments: List[ObsoletePoComment])
 
-class PoFileReader(file: File) extends PoReader(IO.loadUtf8TextFile(file))
+class PoFileReader(file: File, i18nLocalization: I18nLocalization) extends PoReader(IO.loadUtf8TextFile(file), i18nLocalization)
 
-class PoReader(data: String) extends LexParser(data) {
+class PoReader(data: String, i18nLocalization: I18nLocalization) extends LexParser(data) {
 
   // Line at which analysis found the start of a PoEntry
   var startLineNumber = token.lineNumber
@@ -133,12 +133,20 @@ class PoReader(data: String) extends LexParser(data) {
 
     val (emptyEntries, nonEmptyEntries) = po18nEntries.toList.partition(_.key.msgid == "")
 
-    val headerPoEntry = emptyEntries match {
+    val poHeaderEntry = emptyEntries match {
       case List(h) => h
       case Nil => Errors.fatal("No header found.")
       case list => Errors.fatal("_ headers found while only one was expected." << list.length)
     }
 
-    new PoReaderParseResults(headerPoEntry, nonEmptyEntries, obsoleteComments.toList)
+    // Check if there are duplicate entries in the PO entries
+    nonEmptyEntries.groupBy(_.key).filter(_._2.length > 1).map(_._1.computeForHuman) match {
+      case Nil =>
+      case dups => Errors.fatal("Duplicate PO entries: !_" << dups)
+    }
+
+    val headerInfo = new PoHeaderInfo(poHeaderEntry, i18nLocalization)
+
+    new PoReaderParseResults(poHeaderEntry, headerInfo, nonEmptyEntries, obsoleteComments.toList)
   }
 }
