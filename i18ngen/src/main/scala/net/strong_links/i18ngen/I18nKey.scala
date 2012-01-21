@@ -17,16 +17,16 @@ class I18nKey(val msgCtxt: Option[String], val msgid: String, val msgidPlural: O
     I18nUtil.validate(msgidPlural, "msgid_plural");
   }
 
-  def compute = I18nUtil.compute(msgCtxt, msgid)
+  lazy val compute = I18nUtil.compute(msgCtxt, msgid)
 
-  def computeForCompiler = I18nUtil.computeForCompiler(msgCtxt, msgid)
+  lazy val computeForCompiler = I18nUtil.computeForCompiler(msgCtxt, msgid)
 
-  def computeForHuman = I18nUtil.computeForHuman(msgCtxt, msgid)
+  lazy val computeForHuman = I18nUtil.computeForHuman(msgCtxt, msgid)
 
   override def toString = computeForHuman
 
-  override def equals(any: Any) = any match {
-    case that: I18nKey => msgCtxt == that.msgCtxt && msgid == that.msgid
+  override def equals(that: Any) = that match {
+    case x: I18nKey => msgCtxt == x.msgCtxt && msgid == x.msgid
     case _ => false
   }
 

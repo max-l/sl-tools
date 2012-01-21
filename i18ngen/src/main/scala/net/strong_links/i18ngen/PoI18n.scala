@@ -3,10 +3,36 @@ package net.strong_links.i18ngen
 import net.strong_links.core._
 import net.strong_links.core.lex._
 
+object PoI18nEntry {
+
+  def toMap(list: List[PoI18nEntry]) = list.map(e => (e.key, e)).toMap
+
+  def makeFrom(scs: ScalaI18nCallSummary) =
+    new PoI18nEntry(scs.key.msgCtxt, scs.key.msgid, scs.key.msgidPlural, scs.comments, Nil, scs.references, false)
+
+  def makeFuzzyFrom(po: PoI18nEntry) =
+    new PoI18nEntry(po.key.msgCtxt, po.key.msgid, po.key.msgidPlural, po.comments, po.translations, Nil, true)
+
+  def makeFuzzyFrom(po: PoI18nEntry, scs: ScalaI18nCallSummary) =
+    new PoI18nEntry(scs.key.msgCtxt, scs.key.msgid, scs.key.msgidPlural, scs.comments, po.translations, scs.references, true)
+
+  def merge(scs: ScalaI18nCallSummary, po: PoI18nEntry) = {
+    if (scs.key != po.key)
+      Errors.fatal("Attempted to merge !_ with !_." << (scs.key, po.key))
+    if (scs.key.msgidPlural != po.key.msgidPlural)
+      Errors.fatal("Entries !_ and !_ have incompatible msgid_plural values _ and _." <<
+        (scs.key, po.key, scs.key.msgidPlural, po.key.msgidPlural),
+        "Referenced at !_." << scs.references)
+    new PoI18nEntry(po.key.msgCtxt, po.key.msgid, po.key.msgidPlural, po.comments ::: scs.comments, po.translations, scs.references, po.fuzzy)
+  }
+}
+
 class PoI18nEntry(msgCtxt: Option[String], msgid: String, msgidPlural: Option[String], val comments: List[Comment], val translations: List[String], val references: List[I18nReference], val fuzzy: Boolean)
   extends Logging {
 
   val key = new I18nKey(msgCtxt, msgid, msgidPlural, true)
+
+  override def toString = key.toString
 
   if (msgid != "")
     translations.filter(!_.isEmpty).foreach(t => I18nUtil.validate(Some(t), "msgstr"))

@@ -12,6 +12,7 @@ class ScalaI18nCall(msgCtxt: Option[String], msgid: String, msgidPlural: Option[
 }
 
 class ScalaI18nCallSummary(msgCtxt: Option[String], msgid: String, msgidPlural: Option[String], val comments: List[ScalaComment],
-  val references: List[I18nReference]) {
+  _references: List[I18nReference]) {
   val key = new I18nKey(msgCtxt, msgid, msgidPlural, false)
+  def references = _references.sorted
 }

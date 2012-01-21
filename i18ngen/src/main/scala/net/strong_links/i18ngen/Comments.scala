@@ -6,13 +6,19 @@ abstract class Comment(_value: String) {
   def value = _value.trim
 }
 
-class ScalaComment(value: String) extends Comment(value)
+class ScalaComment(value: String) extends Comment(value) {
+  override def toString = "Scala comment: _" << value
+}
 
 abstract class PoComment(value: String) extends Comment(value)
 
-class TranslatorPoComment(value: String) extends PoComment(value)
+class TranslatorPoComment(value: String) extends PoComment(value) {
+  override def toString = "Translator comment: _" << value
+}
 
-class ObsoletePoComment(value: String) extends PoComment(value)
+class ObsoletePoComment(value: String) extends PoComment(value) {
+  override def toString = "Obsolete comment: _" << value
+}
 
 class Comments[T <: Comment] {
   private val contents = scala.collection.mutable.ListBuffer[T]()
