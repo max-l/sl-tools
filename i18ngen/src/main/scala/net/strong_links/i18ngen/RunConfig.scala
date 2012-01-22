@@ -5,7 +5,8 @@ import net.strong_links.core.codegen._
 
 import java.io.File
 
-class RunConfig(val packageName: String, languageKey: String, localizationsStr: String, val inputRootDirectory: File, val outputRootDirectory: File) extends Logging with CodeGeneration {
+class RunConfig(val packageName: String, languageKey: String, localizationsStr: String, val fuzzyThreshold: Double,
+  val inputRootDirectory: File, val outputRootDirectory: File) extends Logging with CodeGeneration {
 
   class Info(val i18nLanguageKey: I18nLanguageKey, val parentI18nLanguageKey: Option[I18nLanguageKey])
 
@@ -55,8 +56,8 @@ class RunConfig(val packageName: String, languageKey: String, localizationsStr: 
   val inputDirectory = make(inputRootDirectory)
   val outputDirectory = make(outputRootDirectory)
 
-  logDebug("Input directory: _" << inputDirectory)
-  logDebug("Output directory: _" << outputDirectory)
+  logDebug("Input: _" << inputDirectory)
+  logDebug("Output: _" << outputDirectory)
 
   IO.checkForExistingDirectory(inputDirectory)
   IO.createDirectory(outputDirectory, true)

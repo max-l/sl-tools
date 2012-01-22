@@ -8,7 +8,7 @@ class PoFileWriter(file: File, nPlural: Int, entries: List[PoI18nEntry], backupC
 
   private val cs = new CharStream
 
-  def generate {
+  def generate = {
     var missingTranslations = 0
     for (e <- entries) {
       cs.print(e.generate(nPlural))
@@ -21,9 +21,6 @@ class PoFileWriter(file: File, nPlural: Int, entries: List[PoI18nEntry], backupC
 
     IO.writeUtf8ToFile(file, cs.close)
 
-    if (missingTranslations == 1)
-      logWarn("1 missing translation.")
-    else if (missingTranslations >= 2)
-      logWarn("!_ entries are missing translations." << missingTranslations)
+    missingTranslations
   }
 }

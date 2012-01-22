@@ -2,10 +2,14 @@ package net.strong_links.i18ngen
 
 import net.strong_links.core._
 import net.strong_links.core.lex._
-
 import java.io.File
+import net.strong_links.core.LoggingPrefixed
 
-class ScalaFileReader(file: File, scalaI18nCalls: scala.collection.mutable.ListBuffer[ScalaI18nCall]) extends LexParser(IO.loadUtf8TextFile(file)) {
+class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) with Logging {
+
+  logDebug("Parsing _" << file)
+
+  type Calls = scala.collection.mutable.ListBuffer[ScalaI18nCall]
 
   val ScalaLineComments, BlockComments = symbol
   val I18nNeutral = idSymbol("I18n")
@@ -79,7 +83,7 @@ class ScalaFileReader(file: File, scalaI18nCalls: scala.collection.mutable.ListB
   // Comments accumulated in the file. We ignore comments that are not within 5 lines of each other.
   val comments = new ScalaComments(5)
 
-  def add(withContext: Boolean, withPlural: Boolean, lineNumber: Int, entryStartLineNumber: Int) {
+  def add(withContext: Boolean, withPlural: Boolean, lineNumber: Int, entryStartLineNumber: Int, calls: Calls) {
     val msgCtxt = if (withContext) { val ctx = eatString; skip(Comma); Some(ctx.value) } else None
     val msgidValue = eatString.value
     val msgPlural = if (withPlural) {
@@ -90,22 +94,23 @@ class ScalaFileReader(file: File, scalaI18nCalls: scala.collection.mutable.ListB
         Some(msgidValue)
     } else
       None
-    scalaI18nCalls += new ScalaI18nCall(msgCtxt, msgidValue, msgPlural, comments.obtainAtLine(lineNumber), file, entryStartLineNumber)
+    calls += new ScalaI18nCall(msgCtxt, msgidValue, msgPlural, comments.obtainAtLine(lineNumber), file, entryStartLineNumber)
   }
 
   // We assume that it is a real I18n usage when the identified I18n symbol is followed by a right
   // parenthesis and a literal string. Else we simply ignore.
-  def tryAdd(withContext: Boolean, withPlural: Boolean) {
+  def tryAdd(withContext: Boolean, withPlural: Boolean, calls: Calls) {
     val entryStartLineNumber = token.lineNumber
     getToken
     if (token is LeftParenthesis) {
       getToken
       if (token is CharacterString)
-        add(withContext, withPlural, token.lineNumber, entryStartLineNumber)
+        add(withContext, withPlural, token.lineNumber, entryStartLineNumber, calls)
     }
   }
 
   def parse = Errors.liveTrap("_, around line _" << (file, token.lineNumber)) {
+    val calls = new Calls()
     getToken
     while (token isNot Eof) {
       token.symbol match {
@@ -113,16 +118,17 @@ class ScalaFileReader(file: File, scalaI18nCalls: scala.collection.mutable.ListB
           comments.addAtLine(new ScalaComment(token.value.substring(3)), token.lineNumber)
           getToken
         case I18nNeutral =>
-          tryAdd(false, false)
+          tryAdd(false, false, calls)
         case I18nNeutralCtxt =>
-          tryAdd(true, false)
+          tryAdd(true, false, calls)
         case I18nNonNeutral =>
-          tryAdd(false, true)
+          tryAdd(false, true, calls)
         case I18nNonNeutralCtxt =>
-          tryAdd(true, true)
+          tryAdd(true, true, calls)
         case _ =>
           getToken
       }
     }
+    calls.toList
   }
 }

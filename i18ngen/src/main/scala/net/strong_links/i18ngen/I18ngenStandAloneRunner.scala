@@ -10,6 +10,8 @@ object I18ngenStandAloneRunner extends Logging {
 
   def main(args: Array[String]) = {
 
+    val DEFAULT_FUZZY_THRESHOLD = 0.3
+
     CmdLine(this, args, List(help("Example of localizations: fr,en_uk:en,fr_ca:fr"),
       help("Example of package code language: en"))).run(
       stringParameter("action", "Action name (catalog, merge, generate)"),
@@ -17,9 +19,13 @@ object I18ngenStandAloneRunner extends Logging {
       stringParameter("package code localization", "Localization of the package code."),
       stringParameter("localizations", "List of localizations to generate."),
       fileParameter("root source directory", "Root source directory."),
-      fileParameter("root output directory", "Root output directory.")) {
-        (action, packageName, languageKey, localizationsStr, inputDirectory, outputDirectory) =>
-          val runConfig = new RunConfig(packageName, languageKey, localizationsStr, inputDirectory, outputDirectory)
+      fileParameter("root output directory", "Root output directory."),
+      doubleSwitch("fuzzy-threshold", "ft", "Fuzzy match threshold override (default is _)" << DEFAULT_FUZZY_THRESHOLD)) {
+        (action, packageName, languageKey, localizationsStr, inputDirectory, outputDirectory, optionalFuzzyThreshold) =>
+          val fuzzyThreshold = optionalFuzzyThreshold.getOrElse(DEFAULT_FUZZY_THRESHOLD)
+          if (fuzzyThreshold < 0)
+            Errors.fatal("Fuzzy match threshold _ cannot be negative." << fuzzyThreshold)
+          val runConfig = new RunConfig(packageName, languageKey, localizationsStr, fuzzyThreshold, inputDirectory, outputDirectory)
           action match {
             case "catalog" =>
               Errors.notImplemented

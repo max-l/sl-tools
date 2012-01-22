@@ -7,8 +7,6 @@ class I18nKey(val msgCtxt: Option[String], val msgid: String, val msgidPlural: O
 
   validate
 
-  val sortKey = compute.toLowerCase
-
   private def validate = {
     I18nUtil.validate(msgCtxt, "msgCtxt")
     val ok = emptyMsgidAllowed && msgid.isEmpty
@@ -17,7 +15,9 @@ class I18nKey(val msgCtxt: Option[String], val msgid: String, val msgidPlural: O
     I18nUtil.validate(msgidPlural, "msgid_plural");
   }
 
-  lazy val compute = I18nUtil.compute(msgCtxt, msgid)
+  val compute = I18nUtil.compute(msgCtxt, msgid)
+
+  val sortKey = compute.toLowerCase
 
   lazy val computeForCompiler = I18nUtil.computeForCompiler(msgCtxt, msgid)
 
