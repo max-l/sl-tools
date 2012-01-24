@@ -9,9 +9,13 @@ object PoHeaderInfo {
 
     // Try to get the plural rule from the stock localizations we already know about.
     def pluralRule = try {
-      I18nCodeLocalization(i18nLocalization.packageName, i18nLocalization.i18nLanguageKey).usePluralRulePoString
+      I18nCodeLocalization(i18nLocalization.packageName, i18nLocalization.i18nLanguageKey.string).usePluralRulePoString
     } catch {
-      case _ => "nplurals=???; plural=???"
+      case _ => try {
+        I18nCodeLocalization(i18nLocalization.packageName, i18nLocalization.i18nLanguageKey.language).usePluralRulePoString
+      } catch {
+        case _ => "nplurals=???; plural=???"
+      }
     }
 
     import i18nLocalization._
@@ -56,12 +60,13 @@ class PoSplitter(s: String, splitWith: Char, subSplitWith: Char) {
       Errors.fatal("Separator _ not found." << at)
     val name = s.substring(0, pos)
     val value = s.substring(pos + 1)
-    (clean(name), clean(value))
+    (clean(name), value.trim)
   }
 
   def get(segmentName: String) = {
     m.get(segmentName) match {
       case None => Errors.fatal("No segment named _ was found." << segmentName)
+      case Some("") => Errors.fatal("Segment named _ is empty." << segmentName)
       case Some(value) => value
     }
   }

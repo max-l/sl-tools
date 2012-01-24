@@ -14,7 +14,7 @@ object I18ngenStandAloneRunner extends Logging {
 
     CmdLine(this, args, List(help("Example of localizations: fr,en_uk:en,fr_ca:fr"),
       help("Example of package code language: en"))).run(
-      stringParameter("action", "Action name (catalog, merge, generate)"),
+      stringParameter("action", "Action name (merge, generate-resources, generate-catalog)"),
       stringParameter("package name", "Name of the package (ex: com.company.xyz)."),
       stringParameter("package code localization", "Localization of the package code."),
       stringParameter("localizations", "List of localizations to generate."),
@@ -27,12 +27,12 @@ object I18ngenStandAloneRunner extends Logging {
             Errors.fatal("Fuzzy match threshold _ cannot be negative." << fuzzyThreshold)
           val runConfig = new RunConfig(packageName, languageKey, localizationsStr, fuzzyThreshold, inputDirectory, outputDirectory)
           action match {
-            case "catalog" =>
-              Errors.notImplemented
             case "merge" =>
-              new I18nGenMerge(runConfig).merge
-            case "generate" =>
-              new I18nGenGenerate(runConfig).generate
+              I18nMerge.run(runConfig)
+            case "generate-resources" =>
+              I18nGenerateResources.run(runConfig)
+            case "generate-catalog" =>
+              I18nGenerateCatalog.run(runConfig)
             case other =>
               Errors.fatal("Invalid action _." << action)
           }

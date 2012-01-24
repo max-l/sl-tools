@@ -193,6 +193,8 @@ class ResourceFileWriter(file: File, i18nLocalization: I18nLocalization, nPlural
     pw.println("// -------------_" << ("-" * Util.nowAsString.length))
 
     pw.println
+    pw.println("package _" << i18nLocalization.packageName)
+    pw.println
     pw.println("class _ {" << i18nLocalization.className)
 
     pw.println
@@ -220,6 +222,8 @@ class ResourceFileWriter(file: File, i18nLocalization: I18nLocalization, nPlural
 
     pw.println("}")
 
-    IO.writeUtf8ToFile(file, pw.close)
+    val code = Util.split(pw.close, '\n').map(Util.trimRight).mkString("\n")
+
+    IO.writeUtf8ToFile(file, code)
   }
 }
