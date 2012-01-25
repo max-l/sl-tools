@@ -6,7 +6,7 @@ import java.io.File
 class Generator(runConfig: RunConfig, i18nLocalization: I18nLocalization)
   extends LocalizationRunner(runConfig, i18nLocalization) {
 
-  def run = {
+  def run = try {
 
     logInfo("Processing _" << poFile)
 
@@ -30,6 +30,8 @@ class Generator(runConfig: RunConfig, i18nLocalization: I18nLocalization)
     logInfo("Generated _" << resourceFile)
 
     resourceFile
+  } catch {
+    case e => println("Failed"); OS.exitError
   }
 }
 

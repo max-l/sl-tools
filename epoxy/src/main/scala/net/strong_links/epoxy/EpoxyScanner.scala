@@ -10,7 +10,7 @@ abstract class EpoxyScanner extends CodeGeneration with Logging {
   var hasError = false
 
   def getFileNameWithoutExtension(file: File) = {
-    Errors.trap("_" << file) {
+    Errors.trap(file) {
       val segments = Util.split(file.getName, '.').filter(!_.isEmpty)
       if (segments.length < 2)
         Errors.fatal("Invalid file name")

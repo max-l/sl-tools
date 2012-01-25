@@ -30,7 +30,7 @@ class Merger(runConfig: RunConfig, i18nLocalization: I18nLocalization, scalaI18n
 
     logInfo("Processing _" << poFile)
 
-    Errors.trap("_" << poFile) {
+    Errors.trap(poFile) {
 
       // Parse the Po file.
       val parseResults = new PoFileReader(poFile, i18nLocalization).parse
@@ -79,6 +79,8 @@ object I18nMerge extends Logging {
       val files = IO.scanDirectoryNames(runConfig.inputDirectory, _.isExtension("scala", "java"))
       logInfo("Scanning _ for I18n calls (_ files)" << (runConfig.inputDirectory, files.length))
       val callsFound = files.par.flatMap(new ScalaFileReader(_).parse).toList
+      for (c <- callsFound)
+        println("_ in _" << (c.key, c.pack))
       val summaries = for (
         (key, calls) <- callsFound.groupBy(_.key);
         sortedCalls = calls.sortWith(_.reference < _.reference)
