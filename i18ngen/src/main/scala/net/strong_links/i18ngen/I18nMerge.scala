@@ -3,10 +3,7 @@ package net.strong_links.i18ngen
 import net.strong_links.core._
 import java.io.File
 
-class Merger(runConfig: RunConfig, i18nLocalization: I18nLocalization, scalaI18nCallSummaries: List[ScalaI18nCallSummary])
-  extends LoggingPrefixed {
-
-  val loggingPrefixSeq = Seq(i18nLocalization.i18nLanguageKey.string: StringLoggingParameter)
+class Merger(runConfig: RunConfig, i18nLocalization: I18nLocalization, scalaI18nCallSummaries: List[ScalaI18nCallSummary]) extends Logging {
 
   val poFile = runConfig.getPoFile(i18nLocalization)
 
@@ -23,12 +20,14 @@ class Merger(runConfig: RunConfig, i18nLocalization: I18nLocalization, scalaI18n
     def fuzzyMatch(scs: ScalaI18nCallSummary, fuzzySource: List[PoI18nEntry]) = {
       val (cost: Double, best) = ((Double.MaxValue, None: Option[PoI18nEntry]) /: fuzzySource.par)((soFar, e) => {
         val c = Util.getWeightedLevenshteinDistance(e.key.compute, scs.key.compute)
-        if (c < soFar._1) (c, Some(e))
-        soFar
+        if (c < soFar._1)
+          (c, Some(e))
+        else
+          soFar
       })
       best match {
         case Some(po) if cost < runConfig.fuzzyThreshold =>
-          logInfo("Fuzzy match between !_ and !_" << (scs.key, po.key), "Weighed cost is _" << cost.formatted("%.2f"))
+          logInfo("Fuzzy match between !_ and !_" << (scs.key, po.key), "Weighed cost is _" << cost.f2)
           PoI18nEntry.makeFuzzyFrom(po, scs)
         case _ =>
           PoI18nEntry.makeFrom(scs)
@@ -36,6 +35,8 @@ class Merger(runConfig: RunConfig, i18nLocalization: I18nLocalization, scalaI18n
     }
 
     Errors.trap(poFile) {
+
+      val fuzzyEnabled = runConfig.fuzzyThreshold == 0.0
 
       // Parse the Po file.
       val parseResults = new PoFileReader(poFile, i18nLocalization).parse
@@ -48,7 +49,7 @@ class Merger(runConfig: RunConfig, i18nLocalization: I18nLocalization, scalaI18n
       val oldPoEntriesMap = PoI18nEntry.toMap(oldPoEntries)
 
       // Use all previous non fuzzy Po entries as a source for fuzzy matches, regardless of their uniqueness.
-      val fuzzySource = (oldPoEntries ::: oldObsoleteEntries)
+      val fuzzySource = if (fuzzyEnabled) (oldPoEntries ::: oldObsoleteEntries) else Nil
 
       // Compute the new Po entries.
       val p = scalaI18nCallSummaries.partition(scs => oldPoEntriesMap.contains(scs.key))

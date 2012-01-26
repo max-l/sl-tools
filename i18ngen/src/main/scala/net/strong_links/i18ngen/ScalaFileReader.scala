@@ -3,11 +3,8 @@ package net.strong_links.i18ngen
 import net.strong_links.core._
 import net.strong_links.core.lex._
 import java.io.File
-import net.strong_links.core.LoggingPrefixed
 
-class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) with LoggingPrefixed {
-
-  val loggingPrefixSeq = Seq(file: FileLoggingParameter)
+class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) with Logging {
 
   type Calls = scala.collection.mutable.ListBuffer[ScalaI18nCall]
 

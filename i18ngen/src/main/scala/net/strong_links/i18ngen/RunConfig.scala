@@ -6,6 +6,9 @@ import net.strong_links.core.codegen._
 import java.io.File
 
 object RunConfig {
+
+  val DEFAULT_FUZZY_THRESHOLD = 0.3
+
   def toI18nConfigs(specifications: String) =
     for (
       s <- Util.split(specifications, ';').map(_.trim).filter(!_.isEmpty);
@@ -17,16 +20,21 @@ object RunConfig {
     ) yield new I18nConfig(packageName, codeLanguageKey, localizationsStr)
 }
 
-class RunConfig(val i18nConfigs: List[I18nConfig], val fuzzyThreshold: Double, val inputRootDirectory: File, val outputRootDirectory: File)
+class RunConfig(val i18nConfigs: List[I18nConfig], val optionalFuzzyThreshold: Option[Double], val inputRootDirectory: File, val outputRootDirectory: File)
   extends Logging {
+
+  val fuzzyThreshold = optionalFuzzyThreshold.getOrElse(RunConfig.DEFAULT_FUZZY_THRESHOLD)
+
+  if (fuzzyThreshold < 0)
+    Errors.fatal("Fuzzy match threshold _ cannot be negative." << fuzzyThreshold)
 
   i18nConfigs.groupBy(_.packageName).filter(_._2.length > 1).map(_._1) match {
     case Nil =>
     case badGuys => Errors.fatal("Duplicate packages _." << badGuys)
   }
 
-  def this(specifications: String, fuzzyThreshold: Double, inputRootDirectory: File, outputRootDirectory: File) =
-    this(RunConfig.toI18nConfigs(specifications), fuzzyThreshold, inputRootDirectory, outputRootDirectory)
+  def this(specifications: String, optionalFuzzyThreshold: Option[Double], inputRootDirectory: File, outputRootDirectory: File) =
+    this(RunConfig.toI18nConfigs(specifications), optionalFuzzyThreshold, inputRootDirectory, outputRootDirectory)
 
   logDebug("Input root: _" << inputRootDirectory)
   IO.checkForExistingDirectory(inputRootDirectory)
