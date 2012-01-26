@@ -5,10 +5,10 @@ import Keys._
 
 object Buildz extends Build {
 
-  val core = "net.strong_links" %% "core" % "0.2"  
+  val core = "com.strong-links" %% "core" % "0.2"  
 
   def buildSettings = Defaults.defaultSettings ++ Seq(
-    organization := "net.strong_links",
+    organization := "com.strong-links",
     version := "0.2",
     scalaVersion := "2.9.1",
     logLevel := Level.Warn,
