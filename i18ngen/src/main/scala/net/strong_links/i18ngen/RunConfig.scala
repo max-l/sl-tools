@@ -5,50 +5,51 @@ import net.strong_links.core.codegen._
 
 import java.io.File
 
-class RunConfig(packageName: String, languageKey: String, localizationsStr: String, val fuzzyThreshold: Double,
-  val inputRootDirectory: File, val outputRootDirectory: File)
-  extends I18nConfig(packageName, languageKey, localizationsStr) with Logging with CodeGeneration {
+object RunConfig {
+  def toI18nConfigs(specifications: String) =
+    for (
+      s <- Util.split(specifications, ';').map(_.trim).filter(!_.isEmpty);
+      (packageName, packageSpecifications) = Util.splitTwoTrimmed(s, '=');
+      (codeLanguageKey, localizationsStr) = if (packageSpecifications.contains("/"))
+        Util.splitTwoTrimmed(packageSpecifications, '/')
+      else
+        (packageSpecifications, "")
+    ) yield new I18nConfig(packageName, codeLanguageKey, localizationsStr)
+}
 
-  logDebug("Package name: _" << packageName)
-  logDebug("Code localization: _" << codeLocalization)
-  logDebug("Localizations: _" << allLocalizations)
+class RunConfig(val i18nConfigs: List[I18nConfig], val fuzzyThreshold: Double, val inputRootDirectory: File, val outputRootDirectory: File)
+  extends Logging {
 
-  private def make(rootdir: File) = new File(rootdir.path + IO.dirSeparator + packageSegments.mkString(IO.dirSeparator))
-
-  val inputDirectory = make(inputRootDirectory)
-  val outputDirectory = make(outputRootDirectory)
-
-  logDebug("Input: _" << inputDirectory)
-  logDebug("Output: _" << outputDirectory)
-
-  IO.checkForExistingDirectory(inputDirectory)
-  IO.createDirectory(outputDirectory, true)
-
-  def generateCatalog = {
-    def cloc(i18nCodeLocalization: I18nCodeLocalization): String = {
-      val lk = i18nCodeLocalization.i18nLanguageKey.string
-      "    val _ = I18nCodeLocalization._(pName)" << (lk, lk)
-    }
-    def loc(i18nLocalization: I18nLocalization): String = {
-      val pl: String = i18nLocalization.parent match {
-        case None => "None"
-        case Some(x) => "Some(_)" << x.i18nLanguageKey.string
-      }
-      val lk = i18nLocalization.i18nLanguageKey.string
-      "    val _ = new I18nLocalization(pName, I18nLanguageKey.from(\"_\"), _)" << (lk, lk, pl)
-    }
-    val outputFile = new File(outputDirectory.path + IO.dirSeparator + "PackageI18nConfig.scala")
-    logDebug("Generating catalog _." << outputFile)
-    val b = scala.collection.mutable.ListBuffer[String]()
-    b += ("package " + packageName)
-    b += ("")
-    b += ("import net.strong_links.core._")
-    b += ("")
-    b += ("object PackageI18nConfig {")
-    val x = codeLocalization.i18nLanguageKey.string
-    val y = allLocalizations.map(_.toString).mkString(",")
-    b += ("  def catalog = new I18nConfig(\"_\", \"_\", \"_\").toCatalog" << (packageName, x, y))
-    b += ("}")
-    IO.writeUtf8ToFile(outputFile, b.mkString("\n"))
+  i18nConfigs.groupBy(_.packageName).filter(_._2.length > 1).map(_._1) match {
+    case Nil =>
+    case badGuys => Errors.fatal("Duplicate packages _." << badGuys)
   }
+
+  def this(specifications: String, fuzzyThreshold: Double, inputRootDirectory: File, outputRootDirectory: File) =
+    this(RunConfig.toI18nConfigs(specifications), fuzzyThreshold, inputRootDirectory, outputRootDirectory)
+
+  logDebug("Input root: _" << inputRootDirectory)
+  IO.checkForExistingDirectory(inputRootDirectory)
+
+  private def getFileFor(rootDir: File, packageName: String, fileName: String) = {
+    val dir = new File(rootDir.path + IO.dirSeparator + packageName.replace(".", IO.dirSeparator))
+    IO.createDirectory(dir, true)
+    new File(dir.path + IO.dirSeparator + fileName)
+  }
+
+  def getOutputFileFor(packageName: String, fileName: String) = getFileFor(outputRootDirectory, packageName, fileName)
+
+  def getInputFileFor(packageName: String, fileName: String) = getFileFor(inputRootDirectory, packageName, fileName)
+
+  def getPoFile(i18nLocalization: I18nLocalization) = {
+    val poFile = getInputFileFor(i18nLocalization.packageName, i18nLocalization.className + ".po")
+    if (!poFile.exists) {
+      IO.writeUtf8ToFile(poFile, PoHeaderInfo.makeDefault(i18nLocalization))
+      logInfo("Created default _." << poFile)
+    }
+    poFile
+  }
+
+  def getResourceFile(i18nLocalization: I18nLocalization) =
+    getOutputFileFor(i18nLocalization.packageName, i18nLocalization.className + ".scala")
 }

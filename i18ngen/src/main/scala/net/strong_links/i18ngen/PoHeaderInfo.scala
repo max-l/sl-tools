@@ -9,10 +9,10 @@ object PoHeaderInfo {
 
     // Try to get the plural rule from the stock localizations we already know about.
     def pluralRule = try {
-      I18nCodeLocalization(i18nLocalization.packageName, i18nLocalization.i18nLanguageKey.string).usePluralRulePoString
+      I18nCodeLocalization.search(Nil, i18nLocalization.i18nLanguageKey.string).usePluralRulePoString
     } catch {
       case _ => try {
-        I18nCodeLocalization(i18nLocalization.packageName, i18nLocalization.i18nLanguageKey.language).usePluralRulePoString
+        I18nCodeLocalization.search(Nil, i18nLocalization.i18nLanguageKey.language).usePluralRulePoString
       } catch {
         case _ => "nplurals=???; plural=???"
       }

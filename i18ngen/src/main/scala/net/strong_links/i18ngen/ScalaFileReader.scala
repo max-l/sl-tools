@@ -87,7 +87,7 @@ class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) w
   // Comments accumulated in the file. We ignore comments that are not within 5 lines of each other.
   val comments = new ScalaComments(5)
 
-  def add(withContext: Boolean, withPlural: Boolean, lineNumber: Int, entryStartLineNumber: Int, pack: Option[String], calls: Calls) {
+  def add(withContext: Boolean, withPlural: Boolean, lineNumber: Int, entryStartLineNumber: Int, pack: List[String], calls: Calls) {
     val msgCtxt = if (withContext) { val ctx = eatString; skip(Comma); Some(ctx.value) } else None
     val msgidValue = eatString.value
     val msgPlural = if (withPlural) {
@@ -98,12 +98,14 @@ class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) w
         Some(msgidValue)
     } else
       None
+    if (pack == Nil)
+      Errors.fatal("No package is in scope.")
     calls += new ScalaI18nCall(pack, msgCtxt, msgidValue, msgPlural, comments.obtainAtLine(lineNumber), file, entryStartLineNumber)
   }
 
   // We assume that it is a real I18n usage when the identified I18n symbol is followed by a right
   // parenthesis and a literal string. Else we simply ignore.
-  def tryAdd(withContext: Boolean, withPlural: Boolean, pack: Option[String], calls: Calls) {
+  def tryAdd(withContext: Boolean, withPlural: Boolean, pack: List[String], calls: Calls) {
     val entryStartLineNumber = token.lineNumber
     getToken
     if (token is LeftParenthesis) {
@@ -113,28 +115,24 @@ class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) w
     }
   }
 
-  def eatPackageName = {
+  def eatPackageSegments = {
     expect(Identifier)
-    var packageName = new StringBuilder(token.value)
+    var packageSegments = scala.collection.mutable.ListBuffer(token.value)
     getToken
     while (token is Dot) {
       getToken
       expect(Identifier)
-      packageName += '.'
-      packageName.append(token.value)
+      packageSegments += token.value
       getToken
     }
-    packageName.toString
+    packageSegments.toList
   }
 
   def eatPackage = {
     skip(Package)
-    // For our purpose, a "package" or a "package object" is the same, so just ignore any "object" here.
     if (token is _Object)
       getToken
-    val packageName = eatPackageName
-    I18nConfig.checkPackageSegments(Util.split(packageName, '.'))
-    packageName
+    eatPackageSegments
   }
 
   def cat(a: Option[String], b: Option[String]) = (a, b) match {
@@ -145,22 +143,16 @@ class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) w
   }
 
   def eatInitialPackages = {
-    def makePack(segments: List[String]) = segments match {
-      case Nil => None
-      case s => Some(s.mkString("."))
-    }
-    val packageNamesBuffer = scala.collection.mutable.ListBuffer(eatPackage)
+    var list = eatPackage
     while (token is Package)
-      packageNamesBuffer += eatPackage
-    val packageNames = packageNamesBuffer.toList
-    val (fps, bps) = if (token is LeftBrace)
-      (packageNames.dropRight(1), List(packageNames.last))
+      list = list ::: eatPackage
+    if (token is LeftBrace)
+      (list.dropRight(1), List(list.last))
     else
-      (packageNames, Nil)
-    (makePack(fps), makePack(bps))
+      (list, Nil)
   }
 
-  def processToken(pack: Option[String], calls: Calls) {
+  def processToken(pack: List[String], calls: Calls) {
     token.symbol match {
       case ScalaLineComments if token.value.startsWith("///") =>
         comments.addAtLine(new ScalaComment(token.value.substring(3)), token.lineNumber)
@@ -178,20 +170,18 @@ class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) w
     }
   }
 
-  def parsePackage(fp: Option[String], calls: Calls) = {
-    logDebug("File package _" << fp)
+  def parsePackage(fp: List[String], calls: Calls) = {
     while (token isNot Eof)
       if (token is Package)
-        parseBlockPackage(fp, Some(eatPackage), calls)
+        parseBlockPackage(fp, eatPackage, calls)
       else
         processToken(fp, calls)
   }
 
-  def parseBlockPackage(fp: Option[String], bp: Option[String], calls: Calls) {
-    logDebug("Block package _" << bp)
+  def parseBlockPackage(fp: List[String], bp: List[String], calls: Calls) {
     skip(LeftBrace)
     var level = 1
-    val pack = cat(fp, bp)
+    val pack = fp ::: bp
     while (level != 0) {
       if (token is LeftBrace) {
         level += 1
@@ -200,7 +190,7 @@ class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) w
         level -= 1
         getToken
       } else if (token is Package)
-        parseBlockPackage(fp, cat(bp, Some(eatPackage)), calls)
+        parseBlockPackage(fp, bp ::: eatPackage, calls)
       else
         processToken(pack, calls)
     }
@@ -208,17 +198,13 @@ class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) w
 
   def parse = Errors.liveTrap("_, around line _" << (file, token.lineNumber)) {
 
-    logDebug("Parsing started.")
-
     val calls = new Calls()
     getToken
 
-    // Get the file package and the first block package. Both can be None here.
+    // Get the file package and the first block package. Both can be Nil here.
     val (fp, bp) = eatInitialPackages
 
-    logDebug("Starting with _ and _" << (fp, bp))
-
-    if (bp == None)
+    if (bp == Nil)
       parsePackage(fp, calls)
     else {
       parseBlockPackage(fp, bp, calls)
@@ -226,10 +212,6 @@ class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) w
     }
     expect(Eof)
 
-    val results = calls.toList
-
-    logDebug("Parsing ended.")
-
-    results
+    calls.toList
   }
 }

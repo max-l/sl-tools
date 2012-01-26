@@ -144,13 +144,13 @@ class PoReader(data: String, i18nLocalization: I18nLocalization) extends LexPars
     }
 
     // Check if there are duplicate entries in the PO entries
-    nonEmptyEntries.groupBy(_.key).filter(_._2.length > 1).map(_._1.computeForHuman) match {
+    nonEmptyEntries.groupBy(_.key).filter(_._2.length > 1).map(_._1.computeForHuman).toList.sorted match {
       case Nil =>
       case dups => Errors.fatal("Duplicate PO entries: !_" << dups)
     }
 
     val headerInfo = new PoHeaderInfo(poHeaderEntry, i18nLocalization)
 
-    new PoReaderParseResults(poHeaderEntry, headerInfo, nonEmptyEntries, obsoleteComments.toList)
+    new PoReaderParseResults(poHeaderEntry, headerInfo, nonEmptyEntries.sorted, obsoleteComments.toList)
   }
 }

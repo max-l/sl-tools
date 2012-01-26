@@ -15,17 +15,15 @@ object I18ngenStandAloneRunner extends Logging {
     CmdLine(this, args, List(help("Example of localizations: fr,en_uk:en,fr_ca:fr"),
       help("Example of package code language: en"))).run(
       stringParameter("action", "Action name (merge, generate-resources, generate-catalog)"),
-      stringParameter("package name", "Name of the package (ex: com.company.xyz)."),
-      stringParameter("package code localization", "Localization of the package code."),
-      stringParameter("localizations", "List of localizations to generate."),
+      stringParameter("specifications", "Specifications of packages and localizations."),
       fileParameter("root source directory", "Root source directory."),
       fileParameter("root output directory", "Root output directory."),
       doubleSwitch("fuzzy-threshold", "ft", "Fuzzy match threshold override (default is _)" << DEFAULT_FUZZY_THRESHOLD)) {
-        (action, packageName, languageKey, localizationsStr, inputDirectory, outputDirectory, optionalFuzzyThreshold) =>
+        (action, specifications, inputDirectory, outputDirectory, optionalFuzzyThreshold) =>
           val fuzzyThreshold = optionalFuzzyThreshold.getOrElse(DEFAULT_FUZZY_THRESHOLD)
           if (fuzzyThreshold < 0)
             Errors.fatal("Fuzzy match threshold _ cannot be negative." << fuzzyThreshold)
-          val runConfig = new RunConfig(packageName, languageKey, localizationsStr, fuzzyThreshold, inputDirectory, outputDirectory)
+          val runConfig = new RunConfig(specifications, fuzzyThreshold, inputDirectory, outputDirectory)
           action match {
             case "merge" =>
               I18nMerge.run(runConfig)

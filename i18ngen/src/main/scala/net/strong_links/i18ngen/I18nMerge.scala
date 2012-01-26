@@ -4,7 +4,13 @@ import net.strong_links.core._
 import java.io.File
 
 class Merger(runConfig: RunConfig, i18nLocalization: I18nLocalization, scalaI18nCallSummaries: List[ScalaI18nCallSummary])
-  extends LocalizationRunner(runConfig, i18nLocalization) {
+  extends LoggingPrefixed {
+
+  val loggingPrefixSeq = Seq(i18nLocalization.i18nLanguageKey.string: StringLoggingParameter)
+
+  val poFile = runConfig.getPoFile(i18nLocalization)
+
+  logDebug("Processing _" << poFile)
 
   def run {
 
@@ -17,7 +23,8 @@ class Merger(runConfig: RunConfig, i18nLocalization: I18nLocalization, scalaI18n
     def fuzzyMatch(scs: ScalaI18nCallSummary, fuzzySource: List[PoI18nEntry]) = {
       val (cost: Double, best) = ((Double.MaxValue, None: Option[PoI18nEntry]) /: fuzzySource.par)((soFar, e) => {
         val c = Util.getWeightedLevenshteinDistance(e.key.compute, scs.key.compute)
-        if (c < soFar._1) (c, Some(e)) else soFar
+        if (c < soFar._1) (c, Some(e))
+        soFar
       })
       best match {
         case Some(po) if cost < runConfig.fuzzyThreshold =>
@@ -27,8 +34,6 @@ class Merger(runConfig: RunConfig, i18nLocalization: I18nLocalization, scalaI18n
           PoI18nEntry.makeFrom(scs)
       }
     }
-
-    logInfo("Processing _" << poFile)
 
     Errors.trap(poFile) {
 
@@ -65,42 +70,68 @@ class Merger(runConfig: RunConfig, i18nLocalization: I18nLocalization, scalaI18n
       logDebug("Renaming _ to _" <<< (newPoFile, poFile))
       IO.deleteFile(poFile)
       IO.renameFile(newPoFile, poFile)
-
-      logInfo("Done")
     }
   }
 }
 
 object I18nMerge extends Logging {
 
+  def invalidCalls(calls: List[ScalaI18nCall])(params: LoggingParameter*) {
+    for (c <- calls.sortWith(_.reference < _.reference))
+      logError((params :+ new StringLoggingParameter(c.toString)): _*)
+    Errors.fatal("Invalid I18n calls.")
+  }
+
+  def summarizePackageCalls(packageSegments: List[String], calls: List[ScalaI18nCall]) = {
+
+    val (good, invalid) = calls.groupBy(_.key).toList.partition(_._2.map(_.key.msgidPlural).distinct.length == 1)
+
+    if (invalid != Nil)
+      invalidCalls(invalid.flatMap(_._2))("Incompatible plural forms between calls.")
+
+    for ((key, calls) <- good; sortedCalls = calls.sortWith(_.reference < _.reference))
+      yield new ScalaI18nCallSummary(key.msgCtxt, key.msgid, key.msgidPlural,
+      sortedCalls.flatMap(_.comments), sortedCalls.map(_.reference))
+  }
+
+  def distributeCalls(runConfig: RunConfig, calls: List[ScalaI18nCall]) = {
+
+    def emptySet = scala.collection.mutable.Set[ScalaI18nCall]()
+    val callsByPackage = runConfig.i18nConfigs.map(_.packageSegments).map(ps => (ps, emptySet)).toMap
+    val unknowns = emptySet
+
+    def search(packageSegments: List[String]): scala.collection.mutable.Set[ScalaI18nCall] =
+      if (packageSegments == Nil)
+        unknowns
+      else
+        callsByPackage.getOrElse(packageSegments, search(packageSegments.init))
+
+    calls.foreach(c => search(c.packageSegments) += c)
+
+    if (!unknowns.isEmpty)
+      invalidCalls(unknowns.toList)("Package is not configured.")
+
+    callsByPackage.map(x => (x._1, summarizePackageCalls(x._1, x._2.toList)))
+  }
+
   def run(runConfig: RunConfig) = {
 
-    val i18nCallsInScalaFiles = {
-      val files = IO.scanDirectoryNames(runConfig.inputDirectory, _.isExtension("scala", "java"))
-      logInfo("Scanning _ for I18n calls (_ files)" << (runConfig.inputDirectory, files.length))
-      val callsFound = files.par.flatMap(new ScalaFileReader(_).parse).toList
-      for (c <- callsFound)
-        println("_ in _" << (c.key, c.pack))
-      val summaries = for (
-        (key, calls) <- callsFound.groupBy(_.key);
-        sortedCalls = calls.sortWith(_.reference < _.reference)
-      ) yield {
-        def refs = sortedCalls.map(_.reference)
-        sortedCalls.map(_.key.msgidPlural).distinct match {
-          case List(msgidPlural) =>
-            new ScalaI18nCallSummary(key.msgCtxt, key.msgid, msgidPlural, sortedCalls.flatMap(_.comments), refs)
-          case msgidPlurals =>
-            Errors.fatal("The I18n key !_ has these incompatible plural forms: !_" << (key, msgidPlurals),
-              "Referenced at !_." << refs)
-        }
-      }
-      summaries.toList
-    }
+    val files = IO.scanDirectoryForFileNames(runConfig.inputRootDirectory, _.isExtension("scala"))
 
-    runConfig.masterLocalizations.par.foreach {
-      localization =>
-        new Merger(runConfig, localization, i18nCallsInScalaFiles).run
+    logInfo("Found _ files under _." << (files.length, runConfig.inputRootDirectory))
+
+    val callsByPackage = distributeCalls(runConfig, files.par.flatMap(new ScalaFileReader(_).parse).toList)
+
+    for (c <- runConfig.i18nConfigs) {
+      val callsForConfig = callsByPackage.get(c.packageSegments) match {
+        case None =>
+          Errors.fatal("Calls not found for package _." << c.packageSegments)
+        case Some(callSummaries) =>
+          // Do an actual merge for master localizations.
+          c.masterLocalizations.par.foreach(new Merger(runConfig, _, callSummaries).run)
+          // Only do a touch not a run for sublocalizations (create Po file if it does not exist).
+          c.subLocalizations.par.foreach(new Merger(runConfig, _, Nil))
+      }
     }
   }
 }
-
