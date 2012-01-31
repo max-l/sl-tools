@@ -11,9 +11,10 @@ object I18ngenStandAloneRunner extends Logging {
   def main(args: Array[String]) = {
 
     import java.util.Locale
-    new I18nConfig2("a.b.c", I18nKnownLocalization.en_US, Seq(new Locale("fr")),
-      Seq(new Locale("fr", "CA"), new Locale("fr", "BE"), new Locale("en", "UK"),
-        new Locale("en", "UK", "Scottish"), new Locale("zg", "ZG")))
+    new I18nConfig2("a.b.c", I18nKnownLocalization.fr,
+      Seq(new Locale("fr_IN"), new Locale("it", "IT")),
+      Seq(new Locale("fr", "CA"), new Locale("fr", "BE"), I18nKnownLocalization.en_US.locale, new Locale("en", "UK"),
+        new Locale("en", "UK", "Scottish"), new Locale("en", "US", "Formal")))
     OS.exitSuccess
 
     //    val fr = new I18nConfigLocalization(I18nLanguageKey.from("fr"))
