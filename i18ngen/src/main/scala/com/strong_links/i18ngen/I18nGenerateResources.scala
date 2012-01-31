@@ -3,17 +3,17 @@ package com.strong_links.i18ngen
 import com.strong_links.core._
 import java.io.File
 
-class Generator(runConfig: RunConfig, i18nLocalization: I18nLocalization) extends Logging {
+class Generator(runConfig: RunConfig, i18nConfig: I18nConfig, i18nConfigLocalization: I18nConfigLocalization) extends Logging {
 
-  val poFile = runConfig.getPoFile(i18nLocalization)
+  val poFile = runConfig.getPoFile(i18nConfig, i18nConfigLocalization)
 
-  val resourceFile = runConfig.getResourceFile(i18nLocalization)
+  val resourceFile = runConfig.getResourceFile(i18nConfig, i18nConfigLocalization)
 
-  def run = {
+  def run = Errors.trap(poFile) {
 
     logDebug("Processing _" << poFile)
 
-    val parseResults = new PoFileReader(poFile, i18nLocalization).parse
+    val parseResults = new PoFileReader(poFile, i18nConfigLocalization).parse
 
     val (fuzzyEntries, nonFuzzyEntries) = parseResults.poI18nEntries.partition(_.fuzzy)
 
@@ -27,7 +27,7 @@ class Generator(runConfig: RunConfig, i18nLocalization: I18nLocalization) extend
 
     untranslatedEntries.foreach(u => logWarn(u.translationStatus(parseResults.headerInfo.nPlural), poFile))
 
-    new ResourceFileWriter(resourceFile, i18nLocalization, parseResults.headerInfo.nPlural,
+    new ResourceFileWriter(resourceFile, i18nConfig, i18nConfigLocalization, parseResults.headerInfo.nPlural,
       parseResults.headerInfo.pluralForm, translatedEntries).generateAndClose
 
     logDebug("Generated _" << resourceFile)
@@ -39,6 +39,6 @@ class Generator(runConfig: RunConfig, i18nLocalization: I18nLocalization) extend
 object I18nGenerateResources {
 
   def run(runConfig: RunConfig) =
-    runConfig.i18nConfigs.par.flatMap(c => { c.allLocalizations.par.map(new Generator(runConfig, _).run) }).toList
+    runConfig.i18nConfigs.par.flatMap(c => { c.allLocalizations.par.map(new Generator(runConfig, c, _).run) }).toList
 }
 

@@ -5,32 +5,25 @@ import com.strong_links.core.lex._
 
 object PoHeaderInfo {
 
-  def makeDefault(i18nLocalization: I18nLocalization): String = {
+  def makeDefault(i18nConfig: I18nConfig, i18nConfigLocalization: I18nConfigLocalization): String = {
 
-    // Try to get the plural rule from the stock localizations we already know about.
-    def pluralRule = try {
-      I18nCodeLocalization.search(Nil, i18nLocalization.i18nLanguageKey.string).usePluralRulePoString
-    } catch {
-      case _ => try {
-        I18nCodeLocalization.search(Nil, i18nLocalization.i18nLanguageKey.language).usePluralRulePoString
-      } catch {
-        case _ => "nplurals=???; plural=???"
-      }
+    def pluralRule = I18nKnownLocalization.getBest(i18nConfigLocalization.i18nLocale.key) match {
+      case None => "nplurals=???; plural=???"
+      case Some(other) => other.poRule
     }
 
-    import i18nLocalization._
     """|msgid ""
          |msgstr ""
-         |"Project-Id-Version: _\n"
-         |"PO-Revision-Date: _\n"
-         |"Language: _\n"
-         |"Language-Team: _ <email@address>\n"
+         |"Project-Id-Version: _1\n"
+         |"PO-Revision-Date: _2\n"
+         |"Language: _3\n"
+         |"Language-Team: _3 <email@address>\n"
          |"Last-Translator: Full Name <email@address>\n"
          |"MIME-Version: 1.0\n"
          |"Content-Type: text/plain; charset=UTF-8\n"
          |"Content-Transfer-Encoding: 8bit\n"
-         |"Plural-Forms: _\n"
-         |""".stripMargin << (packageName, Util.nowAsStringWithTimeDelta, i18nLanguageKey, i18nLanguageKey, pluralRule)
+         |"Plural-Forms: _4\n"
+         |""".stripMargin << (i18nConfig.packageName, Util.nowAsStringWithTimeDelta, i18nConfigLocalization.i18nLocale.key, pluralRule)
   }
 }
 
@@ -82,7 +75,7 @@ object PoPluralForm {
   }
 }
 
-class PoHeaderInfo(entry: PoI18nEntry, i18nLocalization: I18nLocalization) {
+class PoHeaderInfo(entry: PoI18nEntry, i18nConfigLocalization: I18nConfigLocalization) {
 
   val (nPlural, pluralForm) = Errors.trap("Invalid Po file header.") {
     if (entry.key.msgid != "")
@@ -91,8 +84,8 @@ class PoHeaderInfo(entry: PoI18nEntry, i18nLocalization: I18nLocalization) {
       case List(singleTranslation) =>
         val splitter = new PoSplitter(LexParser.toRealLineFeeds(singleTranslation), '\n', ':')
         val languageKey = splitter.get("Language")
-        if (languageKey != i18nLocalization.i18nLanguageKey.string)
-          Errors.fatal("Found language key _ while _ was expected." << (languageKey, i18nLocalization.i18nLanguageKey))
+        if (languageKey != i18nConfigLocalization.i18nLocale.key)
+          Errors.fatal("Found language key _ while _ was expected." << (languageKey, i18nConfigLocalization.i18nLocale.key))
         PoPluralForm.split(splitter.get("Plural-Forms"))
       case _ =>
         Errors.fatal("_ translations found while only one was expected." << entry.translations.length)

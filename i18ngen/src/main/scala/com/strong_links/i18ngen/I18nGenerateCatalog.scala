@@ -19,13 +19,7 @@ object I18nGenerateCatalog extends Logging {
       b += ("import com.strong_links.core._")
       b += ("")
       b += ("object PackageI18nConfig {")
-      val x = i18nConfig.codeLocalization.i18nLanguageKey.string
-      if (i18nConfig.allLocalizations == Nil) {
-        b += ("  def catalog = I18nPackageCatalog(\"_\", \"_\")" << (i18nConfig.packageName, x))
-      } else {
-        val y = i18nConfig.allLocalizations.map(_.toString).mkString(",")
-        b += ("  def catalog = I18nPackageCatalog(\"_\", \"_\", \"_\")" << (i18nConfig.packageName, x, y))
-      }
+      b += ("  def catalog = new I18nConfig(_).toCatalog" << i18nConfig.serialize)
       b += ("}")
       IO.writeUtf8ToFile(outputFile, b.mkString("\n"))
       outputFile

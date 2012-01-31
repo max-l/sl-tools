@@ -9,15 +9,21 @@ object RunConfig {
 
   val DEFAULT_FUZZY_THRESHOLD = 0.3
 
+  private def toPps(packageSpecifications: String) = {
+    Util.split(packageSpecifications, "/") match {
+      case List(codeKey) => (codeKey, "", "")
+      case List(codeKey, masterKeys) => (codeKey, masterKeys, "")
+      case List(codeKey, masterKeys, subKeys) => (codeKey, masterKeys, subKeys)
+      case _ => Errors.fatal("Invalid package specifications _." << packageSpecifications)
+    }
+  }
+
   def toI18nConfigs(specifications: String) =
     for (
       s <- Util.split(specifications, ';').map(_.trim).filter(!_.isEmpty);
       (packageName, packageSpecifications) = Util.splitTwoTrimmed(s, '=');
-      (codeLanguageKey, localizationsStr) = if (packageSpecifications.contains("/"))
-        Util.splitTwoTrimmed(packageSpecifications, '/')
-      else
-        (packageSpecifications, "")
-    ) yield new I18nConfig(packageName, codeLanguageKey, localizationsStr)
+      (codeKey, masterKeys, subKeys) = toPps(packageSpecifications)
+    ) yield new I18nConfig(packageName, codeKey, masterKeys, subKeys)
 }
 
 class RunConfig(val i18nConfigs: List[I18nConfig], val optionalFuzzyThreshold: Option[Double], val inputRootDirectory: File, val outputRootDirectory: File)
@@ -28,7 +34,7 @@ class RunConfig(val i18nConfigs: List[I18nConfig], val optionalFuzzyThreshold: O
   if (fuzzyThreshold < 0)
     Errors.fatal("Fuzzy match threshold _ cannot be negative." << fuzzyThreshold)
 
-  i18nConfigs.groupBy(_.packageName).filter(_._2.length > 1).map(_._1) match {
+  i18nConfigs.groupBy(_.packageName).filter(_._2.length > 1).map(_._1).toList match {
     case Nil =>
     case badGuys => Errors.fatal("Duplicate packages _." << badGuys)
   }
@@ -49,15 +55,18 @@ class RunConfig(val i18nConfigs: List[I18nConfig], val optionalFuzzyThreshold: O
 
   def getInputFileFor(packageName: String, fileName: String) = getFileFor(inputRootDirectory, packageName, fileName)
 
-  def getPoFile(i18nLocalization: I18nLocalization) = {
-    val poFile = getInputFileFor(i18nLocalization.packageName, i18nLocalization.className + ".po")
+  def getClassFile(i18nConfig: I18nConfig, i18nConfigLocalization: I18nConfigLocalization, extension: String) =
+    getInputFileFor(i18nConfig.packageName, i18nConfigLocalization.classNameFor(i18nConfig.packageNameSegments) + "." + extension)
+
+  def getPoFile(i18nConfig: I18nConfig, i18nConfigLocalization: I18nConfigLocalization) = {
+    val poFile = getClassFile(i18nConfig, i18nConfigLocalization, "po")
     if (!poFile.exists) {
-      IO.writeUtf8ToFile(poFile, PoHeaderInfo.makeDefault(i18nLocalization))
+      IO.writeUtf8ToFile(poFile, PoHeaderInfo.makeDefault(i18nConfig, i18nConfigLocalization))
       logInfo("Created default _." << poFile)
     }
     poFile
   }
 
-  def getResourceFile(i18nLocalization: I18nLocalization) =
-    getOutputFileFor(i18nLocalization.packageName, i18nLocalization.className + ".scala")
+  def getResourceFile(i18nConfig: I18nConfig, i18nConfigLocalization: I18nConfigLocalization) =
+    getClassFile(i18nConfig, i18nConfigLocalization, "scala")
 }
