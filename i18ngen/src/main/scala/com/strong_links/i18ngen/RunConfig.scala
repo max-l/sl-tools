@@ -48,18 +48,26 @@ class RunConfig(val i18nConfigs: List[I18nConfig], val optionalFuzzyThreshold: O
   private def getFileFor(rootDir: File, packageName: String, fileName: String) = {
     val dir = new File(rootDir.path + IO.dirSeparator + packageName.replace(".", IO.dirSeparator))
     IO.createDirectory(dir, true)
-    new File(dir.path + IO.dirSeparator + fileName)
+    val fname = dir.path + IO.dirSeparator + fileName
+    new File(fname)
   }
 
   def getOutputFileFor(packageName: String, fileName: String) = getFileFor(outputRootDirectory, packageName, fileName)
 
   def getInputFileFor(packageName: String, fileName: String) = getFileFor(inputRootDirectory, packageName, fileName)
 
-  def getClassFile(i18nConfig: I18nConfig, i18nConfigLocalization: I18nConfigLocalization, extension: String) =
-    getInputFileFor(i18nConfig.packageName, i18nConfigLocalization.classNameFor(i18nConfig.packageNameSegments) + "." + extension)
+  def getInputClassFile(i18nConfig: I18nConfig, i18nConfigLocalization: I18nConfigLocalization, extension: String) = {
+    val fname = i18nConfigLocalization.classNameFor(i18nConfig.packageNameSegments) + "." + extension
+    getInputFileFor(i18nConfig.packageName, fname)
+  }
+
+  def getOutputClassFile(i18nConfig: I18nConfig, i18nConfigLocalization: I18nConfigLocalization, extension: String) = {
+    val fname = i18nConfigLocalization.classNameFor(i18nConfig.packageNameSegments) + "." + extension
+    getOutputFileFor(i18nConfig.packageName, fname)
+  }
 
   def getPoFile(i18nConfig: I18nConfig, i18nConfigLocalization: I18nConfigLocalization) = {
-    val poFile = getClassFile(i18nConfig, i18nConfigLocalization, "po")
+    val poFile = getInputClassFile(i18nConfig, i18nConfigLocalization, "po")
     if (!poFile.exists) {
       IO.writeUtf8ToFile(poFile, PoHeaderInfo.makeDefault(i18nConfig, i18nConfigLocalization))
       logInfo("Created default _." << poFile)
@@ -68,5 +76,5 @@ class RunConfig(val i18nConfigs: List[I18nConfig], val optionalFuzzyThreshold: O
   }
 
   def getResourceFile(i18nConfig: I18nConfig, i18nConfigLocalization: I18nConfigLocalization) =
-    getClassFile(i18nConfig, i18nConfigLocalization, "scala")
+    getOutputClassFile(i18nConfig, i18nConfigLocalization, "scala")
 }
