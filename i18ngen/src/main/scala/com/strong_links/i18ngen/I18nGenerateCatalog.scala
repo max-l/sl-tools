@@ -28,9 +28,10 @@ object I18nGenerateCatalog extends Logging {
       }
       b += ("}")
       IO.writeUtf8ToFile(outputFile, b.mkString("\n"))
+      outputFile
     }
 
-    runConfig.i18nConfigs.foreach(generate)
+    runConfig.i18nConfigs.map(generate)
   }
 }
 
