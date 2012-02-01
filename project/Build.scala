@@ -15,10 +15,7 @@ object Buildz extends Build {
     sbtPlugin := true,
     logLevel in Global := Level.Warn,
     publishArtifact in packageDoc := false,
-    libraryDependencies ++= Seq(
-    core,
-            "org.slf4j" % "slf4j-api" % "1.6.1"
-    )
+    libraryDependencies ++= Seq(core)
   )
   
   lazy val root = Project(

@@ -29,22 +29,22 @@ object I18nGen {
   val fuzzyMatchTreshold = TaskKey[Option[Double]]("i18ngen-fuzzy-threshold")
 
   def i18nTaskInvoker(f: RunConfig => Seq[File]) = (
-      sbt.Keys.logLevel,
-      streams,
-      thisProject,
-      i18nConfigs,
-      fuzzyMatchTreshold,
-      unmanagedSourceDirectories in Compile,
-      sourceManaged in Compile).map { (lLevel, streams, org, i18nConfigs, fuzz, srcDirs, outDir) =>
+    sbt.Keys.logLevel,
+    streams,
+    thisProject,
+    i18nConfigs,
+    fuzzyMatchTreshold,
+    unmanagedSourceDirectories in Compile,
+    sourceManaged in Compile).map { (lLevel, streams, org, i18nConfigs, fuzz, srcDirs, outDir) =>
 
       val scalaSrcDir = srcDirs.filter(_.getName.endsWith("scala")).headOption
       val conf = new RunConfig(i18nConfigs, fuzz, scalaSrcDir.head, outDir)
 
-      if(scalaSrcDir == None)
-        Nil 
+      if (scalaSrcDir == None)
+        Nil
       else {
-        Logging.logger = wrapSbtLogger(streams.log, lLevel)
-        f(conf)         
+        Logging.setLogger(c => wrapSbtLogger(streams.log, lLevel))
+        f(conf)
       }
     }
 
@@ -53,20 +53,20 @@ object I18nGen {
     val genCat = i18nTaskInvoker(I18nGenerateCatalog.run)
 
     val i18nGenCatalogTask = (TaskKey[Seq[File]](
-        "i18n-generate-catalogs", 
-        "Generate catalog definitions that will typically be referred to by the package.scala files.") in Compile) <<= genCat
+      "i18n-generate-catalogs",
+      "Generate catalog definitions that will typically be referred to by the package.scala files.") in Compile) <<= genCat
 
     val mergeAndScan = i18nTaskInvoker(I18nMerge.run)
 
     val i18nScanAndMergeTask = (TaskKey[Seq[File]](
-        "i18n-scan-and-merge", 
-        "Scan Scala source files for I18n strings and merge them into PO files.") in Compile) <<= mergeAndScan
+      "i18n-scan-and-merge",
+      "Scan Scala source files for I18n strings and merge them into PO files.") in Compile) <<= mergeAndScan
 
     val genRes = i18nTaskInvoker(I18nGenerateResources.run)
 
     val i18nGenerateResourcesTask = (TaskKey[Seq[File]](
-        "i18n-generate-resources", 
-        "Generate Scala I18n resource classes that will be loaded at run-time.") in Compile) <<= genRes
+      "i18n-generate-resources",
+      "Generate Scala I18n resource classes that will be loaded at run-time.") in Compile) <<= genRes
 
     Seq(
       fuzzyMatchTreshold := Some(RunConfig.DEFAULT_FUZZY_THRESHOLD),
@@ -74,7 +74,6 @@ object I18nGen {
       sourceGenerators in Compile <+= genRes,
       i18nGenCatalogTask,
       i18nScanAndMergeTask,
-      i18nGenerateResourcesTask
-    )
+      i18nGenerateResourcesTask)
   }
 }
