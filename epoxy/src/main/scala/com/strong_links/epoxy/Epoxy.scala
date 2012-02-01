@@ -50,15 +50,15 @@ object Epoxy {
     epoxyResourceRoots,
     (sourceManaged in Compile)) map { (lLevel, streams, org, proj, wt, wr, templateDirs, resourceDirs, outDir) =>
 
-      Logging.using(wrapSbtLogger(streams.log, lLevel)) {
-        val res1 = templateDirs.flatMap(td => if (td.exists) SbtTemplateRunner(td, outDir, mkRootPackage(org, proj, ".templates")) else Nil)
-        val res2 = resourceDirs.flatMap(rd => if (rd.exists) SbtResourceRunner(rd, outDir, mkRootPackage(org, proj, ".resources")) else Nil)
+      Logging.logger = wrapSbtLogger(streams.log, lLevel)
 
-        if (forCompile)
-          res1 ++ res2
-        else
-          wt ++ wr
-      }
+      val res1 = templateDirs.flatMap(td => if (td.exists) SbtTemplateRunner(td, outDir, mkRootPackage(org, proj, ".templates")) else Nil)
+      val res2 = resourceDirs.flatMap(rd => if (rd.exists) SbtResourceRunner(rd, outDir, mkRootPackage(org, proj, ".resources")) else Nil)
+
+      if (forCompile)
+        res1 ++ res2
+      else
+        wt ++ wr
     }
 
   def init = {
