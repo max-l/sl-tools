@@ -26,7 +26,7 @@ object RunConfig {
     ) yield new I18nConfig(packageName, codeKey, masterKeys, subKeys)
 }
 
-class RunConfig(val i18nConfigs: List[I18nConfig], val optionalFuzzyThreshold: Option[Double], val inputRootDirectory: File, val outputRootDirectory: File)
+class RunConfig(val i18nConfigs: Seq[I18nConfig], val optionalFuzzyThreshold: Option[Double], val inputRootDirectory: File, val outputRootDirectory: File)
   extends Logging {
 
   val fuzzyThreshold = optionalFuzzyThreshold.getOrElse(RunConfig.DEFAULT_FUZZY_THRESHOLD)

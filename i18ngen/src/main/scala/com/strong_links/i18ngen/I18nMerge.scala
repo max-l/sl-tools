@@ -134,5 +134,7 @@ object I18nMerge extends Logging {
           c.subConfigLocalizations.par.foreach(new Merger(runConfig, c, _, Nil))
       }
     }
+    
+    Nil: Seq[File]
   }
 }
