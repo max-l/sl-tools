@@ -11,9 +11,10 @@ object RunConfig {
 
   private def toPps(packageSpecifications: String) = {
     Util.split(packageSpecifications, "/") match {
-      case List(codeKey) => (codeKey, "", "")
-      case List(codeKey, masterKeys) => (codeKey, masterKeys, "")
-      case List(codeKey, masterKeys, subKeys) => (codeKey, masterKeys, subKeys)
+      case List(codeKey) => (codeKey, "", "", "")
+      case List(codeKey, masterKeys) => (codeKey, masterKeys, "", "")
+      case List(codeKey, masterKeys, subKeys) => (codeKey, masterKeys, subKeys, "")
+      case List(codeKey, masterKeys, subKeys, mappings) => (codeKey, masterKeys, subKeys, mappings)
       case _ => Errors.fatal("Invalid package specifications _." << packageSpecifications)
     }
   }
@@ -22,14 +23,15 @@ object RunConfig {
     for (
       s <- Util.split(specifications, ';').map(_.trim).filter(!_.isEmpty);
       (packageName, packageSpecifications) = Util.splitTwoTrimmed(s, '=');
-      (codeKey, masterKeys, subKeys) = toPps(packageSpecifications)
-    ) yield new I18nConfig(packageName, codeKey, masterKeys, subKeys)
+      (codeKey, masterKeys, subKeys, mappings) = toPps(packageSpecifications)
+    ) yield new I18nConfig(packageName, codeKey, masterKeys, subKeys, mappings)
 }
 
 class RunConfig(val i18nConfigs: Seq[I18nConfig], val optionalFuzzyThreshold: Option[Double], val inputRootDirectory: File, val outputRootDirectory: File)
   extends Logging {
 
   val fuzzyThreshold = optionalFuzzyThreshold.getOrElse(RunConfig.DEFAULT_FUZZY_THRESHOLD)
+  val fuzzyEnabled = fuzzyThreshold != 0.0
 
   if (fuzzyThreshold < 0)
     Errors.fatal("Fuzzy match threshold _ cannot be negative." << fuzzyThreshold)
@@ -42,7 +44,6 @@ class RunConfig(val i18nConfigs: Seq[I18nConfig], val optionalFuzzyThreshold: Op
   def this(specifications: String, optionalFuzzyThreshold: Option[Double], inputRootDirectory: File, outputRootDirectory: File) =
     this(RunConfig.toI18nConfigs(specifications), optionalFuzzyThreshold, inputRootDirectory, outputRootDirectory)
 
-  logDebug("Input root: _" << inputRootDirectory)
   IO.checkForExistingDirectory(inputRootDirectory)
 
   private def getFileFor(rootDir: File, packageName: String, fileName: String) = {
@@ -56,25 +57,25 @@ class RunConfig(val i18nConfigs: Seq[I18nConfig], val optionalFuzzyThreshold: Op
 
   def getInputFileFor(packageName: String, fileName: String) = getFileFor(inputRootDirectory, packageName, fileName)
 
-  def getInputClassFile(i18nConfig: I18nConfig, i18nConfigLocalization: I18nConfigLocalization, extension: String) = {
-    val fname = i18nConfigLocalization.classNameFor(i18nConfig.packageNameSegments) + "." + extension
+  def getInputClassFile(i18nConfig: I18nConfig, i18nLocale: I18nLocale, extension: String) = {
+    val fname = i18nLocale.classNameFor(i18nConfig.packageNameSegments) + "." + extension
     getInputFileFor(i18nConfig.packageName, fname)
   }
 
-  def getOutputClassFile(i18nConfig: I18nConfig, i18nConfigLocalization: I18nConfigLocalization, extension: String) = {
-    val fname = i18nConfigLocalization.classNameFor(i18nConfig.packageNameSegments) + "." + extension
+  def getOutputClassFile(i18nConfig: I18nConfig, i18nLocale: I18nLocale, extension: String) = {
+    val fname = i18nLocale.classNameFor(i18nConfig.packageNameSegments) + "." + extension
     getOutputFileFor(i18nConfig.packageName, fname)
   }
 
-  def getPoFile(i18nConfig: I18nConfig, i18nConfigLocalization: I18nConfigLocalization) = {
-    val poFile = getInputClassFile(i18nConfig, i18nConfigLocalization, "po")
+  def getPoFile(i18nConfig: I18nConfig, i18nLocale: I18nLocale) = {
+    val poFile = getInputClassFile(i18nConfig, i18nLocale, "po")
     if (!poFile.exists) {
-      IO.writeUtf8ToFile(poFile, PoHeaderInfo.makeDefault(i18nConfig, i18nConfigLocalization))
+      IO.writeUtf8ToFile(poFile, PoHeaderInfo.makeDefault(i18nConfig, i18nLocale))
       logInfo("Created default _." << poFile)
     }
     poFile
   }
 
-  def getResourceFile(i18nConfig: I18nConfig, i18nConfigLocalization: I18nConfigLocalization) =
-    getOutputClassFile(i18nConfig, i18nConfigLocalization, "scala")
+  def getResourceFile(i18nConfig: I18nConfig, i18nLocale: I18nLocale) =
+    getOutputClassFile(i18nConfig, i18nLocale, "scala")
 }

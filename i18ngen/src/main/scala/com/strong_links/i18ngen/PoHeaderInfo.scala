@@ -5,9 +5,9 @@ import com.strong_links.core.lex._
 
 object PoHeaderInfo {
 
-  def makeDefault(i18nConfig: I18nConfig, i18nConfigLocalization: I18nConfigLocalization): String = {
+  def makeDefault(i18nConfig: I18nConfig, i18nLocale: I18nLocale): String = {
 
-    def pluralRule = I18nKnownLocalization.getBest(i18nConfigLocalization.i18nLocale.key) match {
+    def pluralRule = I18nKnownLocalization.getBest(i18nLocale.key) match {
       case None => "nplurals=???; plural=???"
       case Some(other) => other.poRule
     }
@@ -23,7 +23,7 @@ object PoHeaderInfo {
          |"Content-Type: text/plain; charset=UTF-8\n"
          |"Content-Transfer-Encoding: 8bit\n"
          |"Plural-Forms: _4\n"
-         |""".stripMargin << (i18nConfig.packageName, Util.nowAsStringWithTimeDelta, i18nConfigLocalization.i18nLocale.key, pluralRule)
+         |""".stripMargin << (i18nConfig.packageName, Util.nowAsStringWithTimeDelta, i18nLocale.key, pluralRule)
   }
 }
 
@@ -75,7 +75,7 @@ object PoPluralForm {
   }
 }
 
-class PoHeaderInfo(entry: PoI18nEntry, i18nConfigLocalization: I18nConfigLocalization) {
+class PoHeaderInfo(entry: PoI18nEntry, i18nLocale: I18nLocale) {
 
   val (nPlural, pluralForm) = Errors.trap("Invalid Po file header.") {
     if (entry.key.msgid != "")
@@ -84,8 +84,8 @@ class PoHeaderInfo(entry: PoI18nEntry, i18nConfigLocalization: I18nConfigLocaliz
       case List(singleTranslation) =>
         val splitter = new PoSplitter(LexParser.toRealLineFeeds(singleTranslation), '\n', ':')
         val languageKey = splitter.get("Language")
-        if (languageKey != i18nConfigLocalization.i18nLocale.key)
-          Errors.fatal("Found language key _ while _ was expected." << (languageKey, i18nConfigLocalization.i18nLocale.key))
+        if (languageKey != i18nLocale.key)
+          Errors.fatal("Found language key _ while _ was expected." << (languageKey, i18nLocale.key))
         PoPluralForm.split(splitter.get("Plural-Forms"))
       case _ =>
         Errors.fatal("_ translations found while only one was expected." << entry.translations.length)

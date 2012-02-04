@@ -3,7 +3,7 @@ package com.strong_links.i18ngen
 import com.strong_links.core._
 import java.io.File
 
-object I18nGenerateCatalog extends Logging {
+object I18nGenerateCatalogs extends Logging {
 
   def run(runConfig: RunConfig) = {
 
@@ -19,7 +19,7 @@ object I18nGenerateCatalog extends Logging {
       b += ("import com.strong_links.core._")
       b += ("")
       b += ("object PackageI18nConfig {")
-      b += ("  def catalog = new I18nConfig(_).toCatalog" << i18nConfig.serialize)
+      b += ("  def catalog = new I18nCatalog(new I18nConfig(_))" << i18nConfig.serialize)
       b += ("}")
       IO.writeUtf8ToFile(outputFile, b.mkString("\n"))
       outputFile

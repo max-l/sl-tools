@@ -50,17 +50,23 @@ object I18nGen {
 
   def init = {
 
-    val genCat = i18nTaskInvoker(I18nGenerateCatalog.run)
+    val showConfig = i18nTaskInvoker(I18nShowConfig.run)
+
+    val i18nShowConfigTask = (TaskKey[Seq[File]](
+      "i18n-show-config",
+      "Show the current i18n configuration.") in Compile) <<= showConfig
+
+    val genCat = i18nTaskInvoker(I18nGenerateCatalogs.run)
 
     val i18nGenCatalogTask = (TaskKey[Seq[File]](
       "i18n-generate-catalogs",
       "Generate catalog definitions that will typically be referred to by the package.scala files.") in Compile) <<= genCat
 
-    val mergeAndScan = i18nTaskInvoker(I18nMerge.run)
+    val scanAndMerge = i18nTaskInvoker(I18nScanAndMerge.run)
 
     val i18nScanAndMergeTask = (TaskKey[Seq[File]](
       "i18n-scan-and-merge",
-      "Scan Scala source files for I18n strings and merge them into PO files.") in Compile) <<= mergeAndScan
+      "Scan Scala source files for I18n strings and merge them into PO files.") in Compile) <<= scanAndMerge
 
     val genRes = i18nTaskInvoker(I18nGenerateResources.run)
 
@@ -72,6 +78,7 @@ object I18nGen {
       fuzzyMatchTreshold := Some(RunConfig.DEFAULT_FUZZY_THRESHOLD),
       sourceGenerators in Compile <+= genCat,
       sourceGenerators in Compile <+= genRes,
+      i18nShowConfigTask,
       i18nGenCatalogTask,
       i18nScanAndMergeTask,
       i18nGenerateResourcesTask)

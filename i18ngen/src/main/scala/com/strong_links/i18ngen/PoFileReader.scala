@@ -8,10 +8,10 @@ import scala.collection.mutable.ListBuffer
 
 class PoReaderParseResults(val poHeaderEntry: PoI18nEntry, val headerInfo: PoHeaderInfo, val poI18nEntries: List[PoI18nEntry], val obsoleteComments: List[ObsoletePoComment])
 
-class PoFileReader(file: File, i18nConfigLocalization: I18nConfigLocalization)
-  extends PoReader(IO.loadUtf8TextFile(file), i18nConfigLocalization)
+class PoFileReader(file: File, i18nLocale: I18nLocale)
+  extends PoReader(IO.loadUtf8TextFile(file), i18nLocale)
 
-class PoReader(data: String, i18nConfigLocalization: I18nConfigLocalization) extends LexParser(data) {
+class PoReader(data: String, i18nLocale: I18nLocale) extends LexParser(data) {
 
   // Line at which analysis found the start of a PoEntry
   var startLineNumber = token.lineNumber
@@ -146,7 +146,7 @@ class PoReader(data: String, i18nConfigLocalization: I18nConfigLocalization) ext
       case dups => Errors.fatal("Duplicate PO entries: !_" << dups)
     }
 
-    val headerInfo = new PoHeaderInfo(poHeaderEntry, i18nConfigLocalization)
+    val headerInfo = new PoHeaderInfo(poHeaderEntry, i18nLocale)
 
     new PoReaderParseResults(poHeaderEntry, headerInfo, nonEmptyEntries.sorted, obsoleteComments.toList)
   }
