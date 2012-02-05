@@ -11,6 +11,7 @@ object I18nShowConfig extends Logging {
   def run(runConfig: RunConfig): Seq[File] = {
 
     runConfig.i18nConfigs.sortWith(_.packageName < _.packageName).foreach(_.showConfig)
+    println
 
     Nil
   }

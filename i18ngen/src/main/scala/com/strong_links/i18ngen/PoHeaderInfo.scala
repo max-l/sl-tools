@@ -7,7 +7,7 @@ object PoHeaderInfo {
 
   def makeDefault(i18nConfig: I18nConfig, i18nLocale: I18nLocale): String = {
 
-    def pluralRule = I18nKnownLocalization.getBest(i18nLocale.key) match {
+    def pluralRule = I18nStock.getBest(i18nLocale) match {
       case None => "nplurals=???; plural=???"
       case Some(other) => other.poRule
     }
