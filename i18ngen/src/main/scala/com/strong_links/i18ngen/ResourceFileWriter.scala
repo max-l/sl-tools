@@ -100,7 +100,9 @@ abstract class TableDef[T <: Any](name: String, data: Array[T], isVar: Boolean) 
   }
 
   def generateDef: String = {
-    Util.withStringBuilder { sb => build("", 0, data.length, sb) }
+    val sb = new StringBuilder
+    build("", 0, data.length, sb)
+    sb.toString
   }
 
   def build(suffix: String, start: Int, length: Int, sb: StringBuilder): String = {

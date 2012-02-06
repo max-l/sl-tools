@@ -2,7 +2,6 @@ package com.strong_links.i18ngen
 
 import com.strong_links.core._
 import java.io.File
-import java.util.Locale
 
 object I18nShowConfig extends Logging {
 

@@ -56,6 +56,12 @@ object I18nGen {
       "i18n-show-config",
       "Show the current i18n configuration.") in Compile) <<= showConfig
 
+    val testConfig = i18nTaskInvoker(I18nTestConfig.run)
+
+    val i18nTestConfigTask = (TaskKey[Seq[File]](
+      "i18n-test-config",
+      "Test the current i18n configuration for input user locales.") in Compile) <<= testConfig
+
     val genCat = i18nTaskInvoker(I18nGenerateCatalogs.run)
 
     val i18nGenCatalogTask = (TaskKey[Seq[File]](
@@ -79,6 +85,7 @@ object I18nGen {
       sourceGenerators in Compile <+= genCat,
       sourceGenerators in Compile <+= genRes,
       i18nShowConfigTask,
+      i18nTestConfigTask,
       i18nGenCatalogTask,
       i18nScanAndMergeTask,
       i18nGenerateResourcesTask)
