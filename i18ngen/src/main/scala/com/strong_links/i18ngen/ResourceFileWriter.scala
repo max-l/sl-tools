@@ -100,7 +100,9 @@ abstract class TableDef[T <: Any](name: String, data: Array[T], isVar: Boolean) 
   }
 
   def generateDef: String = {
-    Util.withStringBuilder { sb => build("", 0, data.length, sb) }
+    val sb = new StringBuilder
+    build("", 0, data.length, sb)
+    sb.toString
   }
 
   def build(suffix: String, start: Int, length: Int, sb: StringBuilder): String = {
@@ -152,14 +154,14 @@ class StringTableDef(name: String, data: Array[String], isVar: Boolean) extends 
   val tableType = "String"
 }
 
-class ResourceFileWriter(file: File, i18nConfig: I18nConfig, i18nConfigLocalization: I18nConfigLocalization, nPlural: Int,
+class ResourceFileWriter(file: File, i18nConfig: I18nConfig, i18nLocale: I18nLocale, nPlural: Int,
   pluralForms: String, entries: List[PoI18nEntry]) extends Logging {
 
   val pw = new CharStream
 
   def generateStaticCode(timestamp: String): String = {
 
-    StaticCode.body << (i18nConfigLocalization.i18nLocale.key, entries.length, nPlural, pluralForms, timestamp, System.getProperty("java.version"));
+    StaticCode.body << (i18nLocale.key, entries.length, nPlural, pluralForms, timestamp, System.getProperty("java.version"));
   }
 
   def generateAndClose {
@@ -195,7 +197,7 @@ class ResourceFileWriter(file: File, i18nConfig: I18nConfig, i18nConfigLocalizat
     pw.println
     pw.println("package _" << i18nConfig.packageName)
     pw.println
-    pw.println("class _ {" << i18nConfigLocalization.classNameFor(i18nConfig.packageNameSegments))
+    pw.println("class _ {" << i18nLocale.classNameFor(i18nConfig.packageNameSegments))
 
     pw.println
     pw.println("  // Create the required tables.")

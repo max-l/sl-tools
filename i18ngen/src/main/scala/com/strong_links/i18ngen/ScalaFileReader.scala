@@ -17,6 +17,7 @@ class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) w
   val _Object = idSymbol("object")
   val LeftBrace = specialSymbol("{")
   val RightBrace = specialSymbol("}")
+  val Plus = specialSymbol("+")
 
   def isVerbatimQuotes = currentChar == '"' && nextChar == '"' && nextNextChar == '"'
 
@@ -77,20 +78,40 @@ class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) w
   }
 
   def eatString = {
-    expect(CharacterString)
-    eatAnyToken
+    val s = eatToken(CharacterString).value
+    def eatConcatenatedString = {
+      val b = new StringBuilder(s)
+      while (token is Plus) {
+        getToken
+        b.append(eatToken(CharacterString).value)
+      }
+      b.toString
+    }
+    if (token is Plus)
+      eatConcatenatedString
+    else
+      s
   }
 
   // Comments accumulated in the file. We ignore comments that are not within 5 lines of each other.
   val comments = new ScalaComments(5)
 
+  override def getToken = {
+    super.getToken
+    while ((token is ScalaLineComments) || (token is BlockComments)) {
+      if (token.value.startsWith("///"))
+        comments.addAtLine(new ScalaComment(token.value.substring(3)), token.lineNumber)
+      super.getToken
+    }
+  }
+
   def add(withContext: Boolean, withPlural: Boolean, lineNumber: Int, entryStartLineNumber: Int, pack: List[String], calls: Calls) {
-    val msgCtxt = if (withContext) { val ctx = eatString; skip(Comma); Some(ctx.value) } else None
-    val msgidValue = eatString.value
+    val msgCtxt = if (withContext) { val ctx = eatString; skip(Comma); Some(ctx) } else None
+    val msgidValue = eatString
     val msgPlural = if (withPlural) {
       skip(Comma)
       if (token is CharacterString)
-        Some(eatString.value)
+        Some(eatString)
       else
         Some(msgidValue)
     } else
@@ -151,9 +172,6 @@ class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) w
 
   def processToken(pack: List[String], calls: Calls) {
     token.symbol match {
-      case ScalaLineComments if token.value.startsWith("///") =>
-        comments.addAtLine(new ScalaComment(token.value.substring(3)), token.lineNumber)
-        getToken
       case I18nNeutral =>
         tryAdd(false, false, pack, calls)
       case I18nNeutralCtxt =>

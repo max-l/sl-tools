@@ -13,7 +13,7 @@ class ResourceScanner extends EpoxyScanner {
       if (!resCompCacheFile.isFile)
         Errors.fatal("_ is not a file." << resCompCacheFile)
       val data = IO.loadUtf8TextFile(resCompCacheFile).replace("\r\n", "\n")
-      for (line <- Util.split(data).zipWithIndex.filter(!_._1.isEmpty))
+      for (line <- Util.split(data, '\n').zipWithIndex.filter(!_._1.isEmpty))
         yield FileInfo(resCompCacheFile, line._1, line._2 + 1)
     } else
       Nil

@@ -3,17 +3,17 @@ package com.strong_links.i18ngen
 import com.strong_links.core._
 import java.io.File
 
-class Merger(runConfig: RunConfig, i18nConfig: I18nConfig, i18nConfigLocalization: I18nConfigLocalization, scalaI18nCallSummaries: List[ScalaI18nCallSummary]) extends Logging {
+class Merger(runConfig: RunConfig, i18nConfig: I18nConfig, i18nLocale: I18nLocale, scalaI18nCallSummaries: List[ScalaI18nCallSummary]) extends Logging {
 
-  val poFile = runConfig.getPoFile(i18nConfig, i18nConfigLocalization)
+  val poFile = runConfig.getPoFile(i18nConfig, i18nLocale)
 
   logDebug("Processing _" << poFile)
 
   def run {
 
-    def parseObsoleteComments(obsoleteComments: List[ObsoletePoComment], i18nConfigLocalization: I18nConfigLocalization) = {
+    def parseObsoleteComments(obsoleteComments: List[ObsoletePoComment], i18nLocale: I18nLocale) = {
       def tolerantParser(s: String) =
-        try new PoReader(s, i18nConfigLocalization).parse.poI18nEntries catch { case _ => Nil }
+        try new PoReader(s, i18nLocale).parse.poI18nEntries catch { case _ => Nil }
       obsoleteComments.par.flatMap(oc => tolerantParser(oc.value)).toList
     }
 
@@ -37,19 +37,19 @@ class Merger(runConfig: RunConfig, i18nConfig: I18nConfig, i18nConfigLocalizatio
     // Parse the Po file.
     Errors.trap(poFile) {
 
-      val parseResults = new PoFileReader(poFile, i18nConfigLocalization).parse
+      val parseResults = new PoFileReader(poFile, i18nLocale).parse
 
-      val fuzzyEnabled = runConfig.fuzzyThreshold == 0.0
+      val oldObsoleteComments = parseResults.obsoleteComments
 
       // Also parse its obsolete entries, accepting duplicate values, etc.
-      val oldObsoleteEntries = parseObsoleteComments(parseResults.obsoleteComments, i18nConfigLocalization)
+      val oldObsoleteEntries = parseObsoleteComments(oldObsoleteComments, i18nLocale)
 
       // Get the old Po entries that have some translations and that are non fuzzy. These are considered valuable..
       val oldPoEntries = parseResults.poI18nEntries.filter(po => po.translations.exists(!_.isEmpty) && !po.fuzzy)
       val oldPoEntriesMap = PoI18nEntry.toMap(oldPoEntries)
 
       // Use all previous non fuzzy Po entries as a source for fuzzy matches, regardless of their uniqueness.
-      val fuzzySource = if (fuzzyEnabled) (oldPoEntries ::: oldObsoleteEntries) else Nil
+      val fuzzySource = if (runConfig.fuzzyEnabled) (oldPoEntries ::: oldObsoleteEntries) else Nil
 
       // Compute the new Po entries.
       val p = scalaI18nCallSummaries.partition(scs => oldPoEntriesMap.contains(scs.key))
@@ -61,9 +61,11 @@ class Merger(runConfig: RunConfig, i18nConfig: I18nConfig, i18nConfigLocalizatio
       val newObsoleteComments = fuzzySource.filter(po => !newUnFuzzyPoEntriesMap.contains(po.key)).map(e =>
         new ObsoletePoComment(e.generate(parseResults.headerInfo.nPlural)))
 
-      // Create the new Po file containing the new and recovered strings.
+      // Create the new Po file containing the new and recovered strings. We always write back the old obsolete entries,
+      // plus the new ones just created. Obsolete entries must be removed manually from the files.
       val newPoFile = IO.createTemporaryFile
-      val freshPoFileWriter = new PoFileWriter(newPoFile, parseResults.headerInfo.nPlural, parseResults.poHeaderEntry :: newPoEntries, newObsoleteComments)
+      val freshPoFileWriter = new PoFileWriter(newPoFile, parseResults.headerInfo.nPlural,
+        parseResults.poHeaderEntry :: newPoEntries, oldObsoleteComments ::: newObsoleteComments)
       val k = freshPoFileWriter.generate
       logWarn(Util.sp("_ entry is missing translations.", "_ entries are missing translations.", k) << k)
 
@@ -75,7 +77,7 @@ class Merger(runConfig: RunConfig, i18nConfig: I18nConfig, i18nConfigLocalizatio
   }
 }
 
-object I18nMerge extends Logging {
+object I18nScanAndMerge extends Logging {
 
   def invalidCalls(calls: List[ScalaI18nCall])(params: LoggingParameter*) {
     for (c <- calls.sortWith(_.reference < _.reference))
@@ -128,13 +130,13 @@ object I18nMerge extends Logging {
         case None =>
           Errors.fatal("Calls not found for package _." << c.packageName)
         case Some(callSummaries) =>
-          // Do an actual merge for master localizations.
-          c.masterConfigLocalizations.par.foreach(new Merger(runConfig, c, _, callSummaries).run)
-          // Only do a touch not a run for sublocalizations (create Po file if it does not exist).
-          c.subConfigLocalizations.par.foreach(new Merger(runConfig, c, _, Nil))
+          // Do an actual merge for full localizations.
+          c.fullI18nLocales.par.foreach(new Merger(runConfig, c, _, callSummaries).run)
+          // Only do a touch not a run for delta localizations (create Po file if it does not exist).
+          c.deltaI18nLocales.par.foreach(new Merger(runConfig, c, _, Nil))
       }
     }
-    
+
     Nil: Seq[File]
   }
 }
