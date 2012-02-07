@@ -10,7 +10,8 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
   val HtmlStartComment = specialSymbol("<!--")
   val HtmlEndComment = specialSymbol("-->")
   val Def, End, PreserveSpaces = idSymbol
-  val Js, Xml, Raw, Field, Label, Control, Help, Error = idSymbol
+  val String, I18nJs, Js, Xml, Raw, Field, Label, Control, Help, Error = idSymbol
+  val I18n_ = idSymbol("i18n")
 
   class TemplateArgumentMember(val name: String, val firstUseLine: Int, val baseType: String)
 
@@ -68,7 +69,7 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
       val x = data.substring(verbatimPos, endPos)
       val s = Convert.toScala(massage(x, keepInitialSpace, keepTrailingSpace))
       if (!s.isEmpty)
-        body.println("os.write(\"" + s + "\")")
+        body.println("oc.out.write(\"" + s + "\")")
     }
 
     def makeArgList =
@@ -80,7 +81,7 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
     def generateCode = {
       val isUsingField = arguments.exists(_.finalMembers.exists(_.baseType == T_BASE_FIELD))
       code = IO.usingLeveledCharStream { cs =>
-        cs.block("def _1_2(os: OutStream)" << (templateName, makeArgList)) {
+        cs.block("def _1_2(implicit oc: OutputContext)" << (templateName, makeArgList)) {
           cs.printlnIf(isUsingField, "val ft = fieldTransformer.get")
           cs.println(body.close)
         }
@@ -194,25 +195,27 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
     val usage =
       if (token is Colon) {
         getToken
-        expect(Js, Raw, Xml, Field, Label, Control, Help, Error)
+        expect(String, I18n_, I18nJs, Js, Raw, Xml, Field, Label, Control, Help, Error)
         val x = token.symbol
         // Position now just after the usage: : $arg:js^ or $arg.member:js^
         template.verbatimPos = pos
         getToken
         x
       } else
-        Other
+        String
 
     val (baseType, renderingCode) = usage match {
-      case Other => (T_GENERAL_STRING, "os.write(toHtml(_.toString))" << fullMemberName)
-      case Js => (T_GENERAL_STRING, "os.write(toJs(_.toString, true))" << fullMemberName)
-      case Raw => (T_GENERAL_STRING, "os.write(_.toString)" << fullMemberName)
-      case Xml => (T_XML, "os.write(_.toString)" << fullMemberName)
-      case Field => (T_BASE_FIELD, "ft.transform(_).render(os)" << fullMemberName)
-      case Label => (T_BASE_FIELD, "ft.transform(_).renderLabel(os)" << fullMemberName)
-      case Control => (T_BASE_FIELD, "ft.transform(_).renderControl(os)" << fullMemberName)
-      case Help => (T_BASE_FIELD, "ft.transform(_).renderHelp(os)" << fullMemberName)
-      case Error => (T_BASE_FIELD, "ft.transform(_).renderError(os)" << fullMemberName)
+      case String => (T_STRING, "oc.out.write(toHtml(_))" << fullMemberName)
+      case I18n_ => (T_I18N, "oc.out.write(toHtml(_.f(oc.i18nLocale)))" << fullMemberName)
+      case Js => (T_STRING, "oc.out.write(toJs(_, true))" << fullMemberName)
+      case I18nJs => (T_I18N, "oc.out.write(toJs(_.f(oc.i18nLocale), true))" << fullMemberName)
+      case Raw => (T_STRING, "oc.out.write(_)" << fullMemberName)
+      case Xml => (T_XML, "oc.out.write(_.toString)" << fullMemberName)
+      case Field => (T_BASE_FIELD, "ft.transform(_).render(oc)" << fullMemberName)
+      case Label => (T_BASE_FIELD, "ft.transform(_).renderLabel(oc)" << fullMemberName)
+      case Control => (T_BASE_FIELD, "ft.transform(_).renderControl(oc)" << fullMemberName)
+      case Help => (T_BASE_FIELD, "ft.transform(_).renderHelp(oc)" << fullMemberName)
+      case Error => (T_BASE_FIELD, "ft.transform(_).renderError(oc)" << fullMemberName)
       case _ => Errors.fatal("Invalid usage type _ for _." << (usage, fullMemberName))
     }
 

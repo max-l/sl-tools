@@ -9,7 +9,8 @@ package object epoxy {
   def UUID_SEPARATOR = "++"
 
   val T_BASE_FIELD = "BaseField[_]"
-  val T_GENERAL_STRING = nameOf(classOf[GeneralString])
+  val T_STRING = nameOf(classOf[String])
+  val T_I18N = nameOf(classOf[I18n])
   val T_XML = nameOf(<a/>.getClass)
 
   def nameOf(c: Class[_]) = Util.split(c.getName, '.').last
