@@ -68,9 +68,7 @@ class PoSplitter(s: String, splitWith: Char, subSplitWith: Char) {
 object PoPluralForm {
   def split(pluralForm: String) = {
     val ps = new PoSplitter(pluralForm, ';', '=')
-    val nPlurals = try ps.get("nplurals").toInt catch {
-      case e => Errors.fatal(e, "Invalid number _ found in the Plural-Forms segment." << ps.get("nplurals"))
-    }
+    val nPlurals = try ps.get("nplurals").toInt catch Errors.fatalCatch("Invalid number _ found in the Plural-Forms segment." << ps.get("nplurals"))
     (nPlurals, ps.get("plural"))
   }
 }

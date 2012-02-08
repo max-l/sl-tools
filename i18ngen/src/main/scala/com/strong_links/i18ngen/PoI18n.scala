@@ -27,7 +27,7 @@ object PoI18nEntry {
   }
 }
 
-class PoI18nEntry(msgCtxt: Option[String], msgid: String, msgidPlural: Option[String], val comments: List[Comment], val translations: List[String], val references: List[I18nReference], val fuzzy: Boolean)
+class PoI18nEntry(val msgCtxt: Option[String], val msgid: String, val msgidPlural: Option[String], val comments: List[Comment], val translations: List[String], val references: List[I18nReference], val fuzzy: Boolean)
   extends Logging {
 
   val key = new I18nKey(msgCtxt, msgid, msgidPlural, true)
