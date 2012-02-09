@@ -14,11 +14,12 @@ object I18ngenStandAloneRunner extends Logging {
       help("Example of package code language: en"))).run(
       stringParameter("action", "Action name (scan-and-merge, generate-resources, generate-catalogs)"),
       stringParameter("specifications", "Specifications of packages and localizations."),
-      fileParameter("root source directory", "Root source directory."),
+      fileParameter("Scala source directory", "Scala source directory."),
+      fileParameter("Templates source directory", "Templates source directory."),
       fileParameter("root output directory", "Root output directory."),
       doubleSwitch("fuzzy-threshold", "ft", "Fuzzy match threshold override (default is _, disabled is 0)" << RunConfig.DEFAULT_FUZZY_THRESHOLD)) {
-        (action, specifications, inputDirectory, outputDirectory, fuzzyThreshold) =>
-          val runConfig = new RunConfig(specifications, fuzzyThreshold, inputDirectory, outputDirectory)
+        (action, specifications, scalaDirectory, templatesDirectory, outputDirectory, fuzzyThreshold) =>
+          val runConfig = new RunConfig(specifications, fuzzyThreshold, scalaDirectory, templatesDirectory, outputDirectory)
           action match {
             case "scan-and-merge" =>
               I18nScanAndMerge.run(runConfig)

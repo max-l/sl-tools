@@ -27,7 +27,8 @@ object RunConfig {
     ) yield new I18nConfig(packageName, codeKey, masterKeys, subKeys, mappings)
 }
 
-class RunConfig(val i18nConfigs: Seq[I18nConfig], val optionalFuzzyThreshold: Option[Double], val inputRootDirectory: File, val outputRootDirectory: File)
+class RunConfig(val i18nConfigs: Seq[I18nConfig], val optionalFuzzyThreshold: Option[Double],
+  val scalaRootDirectory: File, val templatesRootDirectory: File, val outputRootDirectory: File)
   extends Logging {
 
   val fuzzyThreshold = optionalFuzzyThreshold.getOrElse(RunConfig.DEFAULT_FUZZY_THRESHOLD)
@@ -41,10 +42,12 @@ class RunConfig(val i18nConfigs: Seq[I18nConfig], val optionalFuzzyThreshold: Op
     case badGuys => Errors.fatal("Duplicate packages _." << badGuys)
   }
 
-  def this(specifications: String, optionalFuzzyThreshold: Option[Double], inputRootDirectory: File, outputRootDirectory: File) =
-    this(RunConfig.toI18nConfigs(specifications), optionalFuzzyThreshold, inputRootDirectory, outputRootDirectory)
+  def this(specifications: String, optionalFuzzyThreshold: Option[Double],
+    scalaRootDirectory: File, templatesRootDirectory: File, outputRootDirectory: File) =
+    this(RunConfig.toI18nConfigs(specifications), optionalFuzzyThreshold,
+      scalaRootDirectory, templatesRootDirectory, outputRootDirectory)
 
-  IO.checkForExistingDirectory(inputRootDirectory)
+  IO.checkForExistingDirectory(scalaRootDirectory)
 
   private def getFileFor(rootDir: File, packageName: String, fileName: String) = {
     val dir = new File(rootDir.path + IO.dirSeparator + packageName.replace(".", IO.dirSeparator))
@@ -55,7 +58,7 @@ class RunConfig(val i18nConfigs: Seq[I18nConfig], val optionalFuzzyThreshold: Op
 
   def getOutputFileFor(packageName: String, fileName: String) = getFileFor(outputRootDirectory, packageName, fileName)
 
-  def getInputFileFor(packageName: String, fileName: String) = getFileFor(inputRootDirectory, packageName, fileName)
+  def getInputFileFor(packageName: String, fileName: String) = getFileFor(scalaRootDirectory, packageName, fileName)
 
   def getInputClassFile(i18nConfig: I18nConfig, i18nLocale: I18nLocale, extension: String) = {
     val fname = i18nLocale.classNameFor(i18nConfig.packageNameSegments) + "." + extension

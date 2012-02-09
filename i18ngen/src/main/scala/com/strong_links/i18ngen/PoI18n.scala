@@ -7,16 +7,16 @@ object PoI18nEntry {
 
   def toMap(list: List[PoI18nEntry]) = list.map(e => (e.key, e)).toMap
 
-  def makeFrom(scs: ScalaI18nCallSummary) =
+  def makeFrom(scs: SourceI18nCallSummary) =
     new PoI18nEntry(scs.key.msgCtxt, scs.key.msgid, scs.key.msgidPlural, scs.comments, Nil, scs.references, false)
 
   def makeFuzzyFrom(po: PoI18nEntry) =
     new PoI18nEntry(po.key.msgCtxt, po.key.msgid, po.key.msgidPlural, po.comments, po.translations, Nil, true)
 
-  def makeFuzzyFrom(po: PoI18nEntry, scs: ScalaI18nCallSummary) =
+  def makeFuzzyFrom(po: PoI18nEntry, scs: SourceI18nCallSummary) =
     new PoI18nEntry(scs.key.msgCtxt, scs.key.msgid, scs.key.msgidPlural, scs.comments, po.translations, scs.references, true)
 
-  def merge(scs: ScalaI18nCallSummary, po: PoI18nEntry) = {
+  def merge(scs: SourceI18nCallSummary, po: PoI18nEntry) = {
     if (scs.key != po.key)
       Errors.fatal("Attempted to merge !_ with !_." << (scs.key, po.key))
     if (scs.key.msgidPlural != po.key.msgidPlural)

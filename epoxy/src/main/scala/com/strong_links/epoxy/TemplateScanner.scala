@@ -69,7 +69,7 @@ class TemplateScanner extends EpoxyScanner with Logging {
   }
 
   def scanFunction(file: File)(code: File => Unit) = {
-    IO.scanDirectory(file)(code(_))
+    IO.scanDirectory(file, _.isExtension("html", "htm"))(code(_))
   }
 }
 

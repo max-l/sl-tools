@@ -21,6 +21,7 @@ object FileInfo {
   }
 
   def apply(file: File) = {
+    println("Computing md5 of _" << file)
     new FileInfo(file.getName, IO.fileUuid(file), file.lastModified)
   }
 }

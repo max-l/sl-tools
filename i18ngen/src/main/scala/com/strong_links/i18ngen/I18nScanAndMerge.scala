@@ -3,7 +3,7 @@ package com.strong_links.i18ngen
 import com.strong_links.core._
 import java.io.File
 
-class Merger(runConfig: RunConfig, i18nConfig: I18nConfig, i18nLocale: I18nLocale, scalaI18nCallSummaries: List[ScalaI18nCallSummary]) extends Logging {
+class Merger(runConfig: RunConfig, i18nConfig: I18nConfig, i18nLocale: I18nLocale, scalaI18nCallSummaries: List[SourceI18nCallSummary]) extends Logging {
 
   val poFile = runConfig.getPoFile(i18nConfig, i18nLocale)
 
@@ -17,7 +17,7 @@ class Merger(runConfig: RunConfig, i18nConfig: I18nConfig, i18nLocale: I18nLocal
       obsoleteComments.par.flatMap(oc => tolerantParser(oc.value)).toList
     }
 
-    def fuzzyMatch(scs: ScalaI18nCallSummary, fuzzySource: List[PoI18nEntry]) = {
+    def fuzzyMatch(scs: SourceI18nCallSummary, fuzzySource: List[PoI18nEntry]) = {
       val (cost: Double, best) = ((Double.MaxValue, None: Option[PoI18nEntry]) /: fuzzySource.par)((soFar, e) => {
         val c = Util.getWeightedLevenshteinDistance(e.key.compute, scs.key.compute)
         if (c < soFar._1)
@@ -79,13 +79,13 @@ class Merger(runConfig: RunConfig, i18nConfig: I18nConfig, i18nLocale: I18nLocal
 
 object I18nScanAndMerge extends Logging {
 
-  def invalidCalls(calls: List[ScalaI18nCall])(params: LoggingParameter*) {
+  def invalidCalls(calls: List[SourceI18nCall])(params: LoggingParameter*) {
     for (c <- calls.sortWith(_.reference < _.reference))
       logError((params :+ new StringLoggingParameter(c.toString)): _*)
     Errors.fatal("Invalid I18n calls.")
   }
 
-  def summarizePackageCalls(packageSegments: List[String], calls: List[ScalaI18nCall]) = {
+  def summarizePackageCalls(packageSegments: List[String], calls: List[SourceI18nCall]) = {
 
     val (good, invalid) = calls.groupBy(_.key).toList.partition(_._2.map(_.key.msgidPlural).distinct.length == 1)
 
@@ -93,17 +93,17 @@ object I18nScanAndMerge extends Logging {
       invalidCalls(invalid.flatMap(_._2))("Incompatible plural forms between calls.")
 
     for ((key, calls) <- good; sortedCalls = calls.sortWith(_.reference < _.reference))
-      yield new ScalaI18nCallSummary(key.msgCtxt, key.msgid, key.msgidPlural,
+      yield new SourceI18nCallSummary(key.msgCtxt, key.msgid, key.msgidPlural,
       sortedCalls.flatMap(_.comments), sortedCalls.map(_.reference))
   }
 
-  def distributeCalls(runConfig: RunConfig, calls: List[ScalaI18nCall]) = {
+  def distributeCalls(runConfig: RunConfig, calls: List[SourceI18nCall]) = {
 
-    def emptySet = scala.collection.mutable.Set[ScalaI18nCall]()
+    def emptySet = scala.collection.mutable.Set[SourceI18nCall]()
     val callsByPackage = runConfig.i18nConfigs.map(_.packageNameSegments).map(ps => (ps, emptySet)).toMap
     val unknowns = emptySet
 
-    def search(packageSegments: List[String]): scala.collection.mutable.Set[ScalaI18nCall] =
+    def search(packageSegments: List[String]): scala.collection.mutable.Set[SourceI18nCall] =
       if (packageSegments == Nil)
         unknowns
       else
@@ -119,11 +119,14 @@ object I18nScanAndMerge extends Logging {
 
   def run(runConfig: RunConfig) = {
 
-    val files = IO.scanDirectoryForFileNames(runConfig.inputRootDirectory, _.isExtension("scala"))
+    val scalaFiles = IO.scanDirectoryForFileNames(runConfig.scalaRootDirectory, _.isExtension("scala"))
+    logInfo("Found Scala _ files under _." << (scalaFiles.length, runConfig.scalaRootDirectory))
+    val scalaCalls = scalaFiles.par.flatMap(new ScalaFileReader(_).parse).toList
 
-    logInfo("Found _ files under _." << (files.length, runConfig.inputRootDirectory))
+    val templateFiles = IO.scanDirectoryForFileNames(runConfig.templatesRootDirectory, _.isExtension("html"))
+    logInfo("Found HTML _ files under _." << (templateFiles.length, runConfig.templatesRootDirectory))
 
-    val callsByPackage = distributeCalls(runConfig, files.par.flatMap(new ScalaFileReader(_).parse).toList)
+    val callsByPackage = distributeCalls(runConfig, scalaCalls)
 
     for (c <- runConfig.i18nConfigs) {
       val callsForConfig = callsByPackage.get(c.packageNameSegments) match {
