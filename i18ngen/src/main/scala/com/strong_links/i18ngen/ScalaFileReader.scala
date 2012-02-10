@@ -6,7 +6,7 @@ import java.io.File
 
 class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) with Logging {
 
-  type Calls = scala.collection.mutable.ListBuffer[ScalaI18nCall]
+  type Calls = scala.collection.mutable.ListBuffer[SourceI18nCall]
 
   val ScalaLineComments, BlockComments = symbol
   val I18nNeutral = idSymbol("I18n")
@@ -118,7 +118,7 @@ class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) w
       None
     if (pack == Nil)
       Errors.fatal("No package is in scope.")
-    calls += new ScalaI18nCall(pack, msgCtxt, msgidValue, msgPlural, comments.obtainAtLine(lineNumber), file, entryStartLineNumber)
+    calls += new SourceI18nCall(pack, msgCtxt, msgidValue, msgPlural, comments.obtainAtLine(lineNumber), file, entryStartLineNumber)
   }
 
   // We assume that it is a real I18n usage when the identified I18n symbol is followed by a right

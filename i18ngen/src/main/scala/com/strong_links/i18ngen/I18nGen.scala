@@ -28,17 +28,28 @@ object I18nGen {
 
   val fuzzyMatchTreshold = TaskKey[Option[Double]]("i18ngen-fuzzy-threshold")
 
+  val epoxyTemplateRoots = TaskKey[Seq[File]]("epoxy-template-root-directories")
+
   def i18nTaskInvoker(f: RunConfig => Seq[File]) = (
     sbt.Keys.logLevel,
     streams,
     thisProject,
     i18nConfigs,
     fuzzyMatchTreshold,
+    epoxyTemplateRoots,
     unmanagedSourceDirectories in Compile,
-    sourceManaged in Compile).map { (lLevel, streams, org, i18nConfigs, fuzz, srcDirs, outDir) =>
+    sourceManaged in Compile).map { (lLevel, streams, org, i18nConfigs, fuzz, templateDirs, srcDirs, outDir) =>
 
-      val scalaSrcDir = srcDirs.filter(_.getName.endsWith("scala")).headOption
-      val conf = new RunConfig(i18nConfigs, fuzz, scalaSrcDir.head, outDir)
+      def getSingleDirectory(files: Seq[File], dirName: String) = files.filter(_.getName.endsWith(dirName)) match {
+        case Seq() => Errors.fatal("No directory ending in _ found in supplied list _." << (dirName, files))
+        case Seq(single) => single
+        case seq => Errors.fatal("More than one directory ending in _ found: _." << (dirName, seq))
+      }
+
+      val scalaSrcDir = getSingleDirectory(srcDirs, "scala")
+      val templatesSrcDir = getSingleDirectory(templateDirs, "templates")
+
+      val conf = new RunConfig(i18nConfigs, fuzz, scalaSrcDir, templatesSrcDir, outDir)
 
       if (scalaSrcDir == None)
         Nil

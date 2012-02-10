@@ -4,5 +4,5 @@ import com.strong_links.core._
 
 object TemplateStandAloneRunner extends TemplateScanner {
 
-  def main(args: Array[String]): Unit = main(args, "Template root directory.")
+  def main(args: Array[String]): Unit = super.main(args, "Template root directory.")
 }

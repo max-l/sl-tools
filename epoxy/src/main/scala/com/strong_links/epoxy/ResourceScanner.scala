@@ -101,9 +101,10 @@ class ResourceScanner extends EpoxyScanner {
     val resCompCacheFileName = resCompCacheFile.path
 
     // Check if there are files in this directory.
-    val files = directory.listFiles.toList.filter(_.isFile).filter(_.getName != resCompCacheFileName)
+    val allFiles = directory.listFiles.toList.filter(_.isFile)
+    val files = allFiles.filter(_.getName != fname)
 
-    logInfo("Processing directory _" <<< directory)
+    logDebug("Processing directory _" <<< directory)
 
     if (files.isEmpty) {
       logDebug("Directory empty, deleting _ if it exists." <<< resCompCacheFile)
