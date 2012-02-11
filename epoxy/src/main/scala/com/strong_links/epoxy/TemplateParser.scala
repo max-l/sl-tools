@@ -87,7 +87,7 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
         body.println("oc.out.write(\"" + x + "\")")
     }
 
-    def bodyWriteCache[T](data: T, enabled: Boolean, exp: T => String, formatter: String => String) {
+    def bodyWriteCache[T](data: T, enabled: Boolean)(exp: T => String, formatter: String => String) {
       val callValue = exp(data)
       val out =
         if (enabled) {
@@ -101,14 +101,23 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
     }
 
     def bodyWriteI18n(x: String) = if (x != "") {
-      bodyWriteCache[String](Convert.toScala(x), enableI18nCache,
-        "I18n(\"" + _ + "\")", _ + ".f(oc.i18nLocale)")
+      bodyWriteCache(Convert.toScala(x), enableI18nCache)("I18n(\"" + _ + "\")", _ + ".f(oc.i18nLocale)")
     }
 
     def bodyWriteUri(uri: String) {
-      val (module, method) = Errors.trap("Decoding Uri _" << uri) { Util.splitTwo(uri, '/') }
-      bodyWriteCache[(String, String)]((module, method), enableUriCache,
-        x => "_.uriFor(__._)" << (x._1, x._2), _ + ".format(oc)")
+      val s = Util.split(uri, '/')
+      if (s.length < 2)
+        Errors.fatal("Invalid Uri _." << uri)
+      if (s.head.endsWith(".resources")) {
+        val module = s.init.mkString(".")
+        val method = s.last
+        bodyWriteCache((module, method), enableUriCache)(x => "_._" << (x._1, x._2), _ + ".format(oc)")
+
+      } else {
+        if (s.length != 2)
+          Errors.fatal("Interaction Uri _ cannot have parameters." << uri)
+        bodyWriteCache((s(0), s(1)), enableUriCache)(x => "_.uriFor(__._)" << (x._1, x._2), _ + ".format(oc)")
+      }
     }
 
     def verbatim(endPos: Int, restartPos: Int, endingTemplate: Boolean): Unit = {

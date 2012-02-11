@@ -32,7 +32,6 @@ class ResourceScanner extends EpoxyScanner {
     val objectName = className
     val outputDirectoryName = outputDirectory.path + IO.dirSeparator + segments.mkString(IO.dirSeparator)
     val outputFile = new File(outputDirectoryName + IO.dirSeparator + "package.scala")
-    val directoryForPackage = segments.mkString(IO.dirSeparator)
 
     val oldMap = scala.collection.mutable.Map[String, FileInfo]()
 
@@ -79,15 +78,13 @@ class ResourceScanner extends EpoxyScanner {
 
     if (generate) {
       logDebug("Generating new _." <<< outputFile)
-      generateScalaFile(entries, "", outputFile, directory, masterPackageName, packageName, className, objectName, false, Nil) { e =>
-        val cs = new LeveledCharStream
-        cs.println("def _ = {" << e.makeFunctionName(directory))
-        cs.increaseLevel
-        val fileName = (directoryForPackage + IO.dirSeparator + e.nameUuid).replace(IO.dirSeparator, "/")
-        cs.println(Convert.toScala(fileName, true))
-        cs.decreaseLevel
-        cs.println("}")
-        cs.close
+      val imports = List("com.strong_links.scalaforms.StaticUri")
+      generateScalaFile(entries, "", outputFile, directory, masterPackageName, packageName, className, objectName, false, imports) { e =>
+        val fileName = (packageName + IO.dirSeparator + e.nameUuid).replace(IO.dirSeparator, "/")
+        val a = e.makeFunctionName(directory)
+        val b = Convert.toScala(masterPackageName, true)
+        val c = Convert.toScala(fileName, true)
+        "def _ = new StaticUri(_, _)" << (a, b, c)
       }
     } else
       logDebug("_ is up-to-date." <<< outputFile)
