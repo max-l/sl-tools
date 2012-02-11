@@ -28,7 +28,7 @@ object RunConfig {
 }
 
 class RunConfig(val i18nConfigs: Seq[I18nConfig], val optionalFuzzyThreshold: Option[Double],
-  val scalaRootDirectory: File, val templatesRootDirectory: File, val outputRootDirectory: File)
+  val scalaRootDirectory: File, val generatedScalaRootDirectory: File, val outputRootDirectory: File)
   extends Logging {
 
   val fuzzyThreshold = optionalFuzzyThreshold.getOrElse(RunConfig.DEFAULT_FUZZY_THRESHOLD)

@@ -119,14 +119,16 @@ object I18nScanAndMerge extends Logging {
 
   def run(runConfig: RunConfig) = {
 
-    val scalaFiles = IO.scanDirectoryForFileNames(runConfig.scalaRootDirectory, _.isExtension("scala"))
-    logInfo("Found Scala _ files under _." << (scalaFiles.length, runConfig.scalaRootDirectory))
-    val scalaCalls = scalaFiles.par.flatMap(new ScalaFileReader(_).parse).toList
+    def getScalaCalls(rootDirectory: File) = {
+      val files = IO.scanDirectoryForFileNames(rootDirectory, _.isExtension("scala"))
+      logInfo("Found Scala _ files under _." << (files.length, rootDirectory))
+      files.par.flatMap(new ScalaFileReader(_).parse).toList
+    }
 
-    val templateFiles = IO.scanDirectoryForFileNames(runConfig.templatesRootDirectory, _.isExtension("html"))
-    logInfo("Found HTML _ files under _." << (templateFiles.length, runConfig.templatesRootDirectory))
+    val scalaCalls = getScalaCalls(runConfig.scalaRootDirectory)
+    val generatedScalaCalls = getScalaCalls(runConfig.generatedScalaRootDirectory)
 
-    val callsByPackage = distributeCalls(runConfig, scalaCalls)
+    val callsByPackage = distributeCalls(runConfig, scalaCalls ::: generatedScalaCalls)
 
     for (c <- runConfig.i18nConfigs) {
       val callsForConfig = callsByPackage.get(c.packageNameSegments) match {
@@ -134,9 +136,9 @@ object I18nScanAndMerge extends Logging {
           Errors.fatal("Calls not found for package _." << c.packageName)
         case Some(callSummaries) =>
           // Do an actual merge for full localizations.
-          c.fullI18nLocales.par.foreach(new Merger(runConfig, c, _, callSummaries).run)
+          c.fullI18nLocales.foreach(new Merger(runConfig, c, _, callSummaries).run)
           // Only do a touch not a run for delta localizations (create Po file if it does not exist).
-          c.deltaI18nLocales.par.foreach(new Merger(runConfig, c, _, Nil))
+          c.deltaI18nLocales.foreach(new Merger(runConfig, c, _, Nil))
       }
     }
 

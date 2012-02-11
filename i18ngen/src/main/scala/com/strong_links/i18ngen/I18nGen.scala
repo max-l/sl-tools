@@ -47,9 +47,8 @@ object I18nGen {
       }
 
       val scalaSrcDir = getSingleDirectory(srcDirs, "scala")
-      val templatesSrcDir = getSingleDirectory(templateDirs, "templates")
 
-      val conf = new RunConfig(i18nConfigs, fuzz, scalaSrcDir, templatesSrcDir, outDir)
+      val conf = new RunConfig(i18nConfigs, fuzz, scalaSrcDir, outDir, outDir)
 
       if (scalaSrcDir == None)
         Nil

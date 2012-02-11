@@ -39,7 +39,7 @@ object Epoxy {
     Some(x.replace("-", "_"))
   }
 
-  private def defineEpoxyTask(forCompile: Boolean) = (
+  private def defineEpoxyTask(forCompile: Boolean, rebuild: Boolean) = (
     logLevel,
     streams,
     organization,
@@ -52,8 +52,8 @@ object Epoxy {
 
       Logging.setLogger(c => wrapSbtLogger(streams.log, lLevel))
 
-      val res1 = templateDirs.flatMap(td => if (td.exists) SbtTemplateRunner(td, outDir, mkRootPackage(org, proj, ".templates")) else Nil)
-      val res2 = resourceDirs.flatMap(rd => if (rd.exists) SbtResourceRunner(rd, outDir, mkRootPackage(org, proj, ".resources")) else Nil)
+      val res1 = templateDirs.flatMap(td => if (td.exists) SbtTemplateRunner(td, outDir, mkRootPackage(org, proj, ".templates"), rebuild) else Nil)
+      val res2 = resourceDirs.flatMap(rd => if (rd.exists) SbtResourceRunner(rd, outDir, mkRootPackage(org, proj, ".resources"), rebuild) else Nil)
 
       if (forCompile)
         res1 ++ res2
@@ -63,7 +63,8 @@ object Epoxy {
 
   def init = {
 
-    val epoxyTask = (TaskKey[Seq[File]]("epoxy") in Compile) <<= defineEpoxyTask(false)
+    val epoxyTask = (TaskKey[Seq[File]]("epoxy") in Compile) <<= defineEpoxyTask(false, false)
+    val epoxyRebuildAllTask = (TaskKey[Seq[File]]("epoxy-rebuild-all") in Compile) <<= defineEpoxyTask(false, true)
 
     Seq(
       (epoxyTemplateRoots) <<= sourceDirectory.map(src => Nil: Seq[File]),
@@ -75,6 +76,7 @@ object Epoxy {
       watchSources <++= (watchedTemplates in Compile),
       watchSources <++= (watchedResources in Compile),
       epoxyTask,
-      (sourceGenerators in Compile) <+= defineEpoxyTask(true))
+      epoxyRebuildAllTask,
+      (sourceGenerators in Compile) <+= defineEpoxyTask(true, false))
   }
 }

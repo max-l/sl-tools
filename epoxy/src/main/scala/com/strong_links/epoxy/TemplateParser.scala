@@ -9,9 +9,25 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
 
   val HtmlStartComment = specialSymbol("<!--")
   val HtmlEndComment = specialSymbol("-->")
-  val Def, End, PreserveSpaces = idSymbol
-  val String, I18nJs, Js, Xml, Raw, Field, Label, Control, Help, Error = idSymbol
-  val I18n_ = idSymbol("i18n")
+  val Def, End, Interpretation, On, Off, PreserveSpaces, EnableI18nCache = idSymbol
+  val String = idSymbol("String")
+  val I18n_ = idSymbol("I18n")
+  val I18nJs = idSymbol("I18nJs")
+  val Js = idSymbol("Js")
+  val Xml = idSymbol("Xml")
+  val Raw = idSymbol("Raw")
+  val Field = idSymbol("Field")
+  val Control = idSymbol("Control")
+  val Label = idSymbol("Label")
+  val Help = idSymbol("Help")
+  val Error = idSymbol("Error")
+  val Uri = idSymbol("Uri")
+  val hardCodedI18n = symbol
+  val hardCodedUri = symbol
+
+  var interpretation = true
+  var enableI18nCache = false
+  var i18nCacheSequence = 0
 
   class TemplateArgumentMember(val name: String, val firstUseLine: Int, val baseType: String)
 
@@ -36,6 +52,7 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
     var firstVerbatim = true
     val firstVerbatimPos = startPos
     var verbatimPos = startPos
+    val i18nCache = new LeveledCharStream
 
     def massage(s: String, keepInitialSpace: Boolean, keepTrailingSpace: Boolean) = {
       val addSpaceLeft = keepInitialSpace && (s.length > 0) && s(0).isSpaceChar
@@ -63,14 +80,42 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
       r
     }
 
-    def verbatim(endPos: Int, endingTemplate: Boolean) {
+    def bodyWrite(s: String) {
+      val x = Convert.toScala(s)
+      if (!x.isEmpty)
+        body.println("oc.out.write(\"" + x + "\")")
+    }
+
+    def bodyWriteI18n(i18n: String) {
+      val x = Convert.toScala(i18n)
+      if (!x.isEmpty) {
+        val i18nCall = "I18n(\"" + x + "\")"
+        val z =
+          if (enableI18nCache) {
+            val varName = "__i18n" + i18nCacheSequence
+            i18nCacheSequence += 1
+            i18nCache.println("private lazy val _ = _" << (varName, i18nCall))
+            varName
+          } else
+            i18nCall
+        body.println("oc.out.write(_.f(oc.i18nLocale))" << z)
+      }
+    }
+
+    def bodyWriteUri(uri: String) {
+      val (module, method) = Errors.trap("Decoding Uri _" << uri) { Util.splitTwo(uri, '/') }
+      body.println("oc.out.write(_.uriFor(__._).format(oc))" << (module, method))
+    }
+
+    def verbatim(endPos: Int, restartPos: Int, endingTemplate: Boolean): Unit = {
       val keepInitialSpace = if (verbatimPos == firstVerbatimPos) preserveSpace else true
       val keepTrailingSpace = if (endingTemplate) preserveSpace else true
       val x = data.substring(verbatimPos, endPos)
-      val s = Convert.toScala(massage(x, keepInitialSpace, keepTrailingSpace))
-      if (!s.isEmpty)
-        body.println("oc.out.write(\"" + s + "\")")
+      bodyWrite(massage(x, keepInitialSpace, keepTrailingSpace))
+      verbatimPos = restartPos
     }
+
+    def verbatim(endPos: Int, endingTemplate: Boolean): Unit = verbatim(endPos, verbatimPos, endingTemplate)
 
     def makeArgList =
       if (arguments.isEmpty)
@@ -81,6 +126,11 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
     def generateCode = {
       val isUsingField = arguments.exists(_.finalMembers.exists(_.baseType == T_BASE_FIELD))
       code = IO.usingLeveledCharStream { cs =>
+        val i18nCacheCode = i18nCache.close
+        if (i18nCacheCode != "") {
+          cs.println
+          cs.println(i18nCacheCode)
+        }
         cs.block("def _1_2(implicit oc: OutputContext)" << (templateName, makeArgList)) {
           cs.printlnIf(isUsingField, "val ft = fieldTransformer.get")
           cs.println(body.close)
@@ -151,10 +201,21 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
     arg.startsWith("$") && arg.length > 1 && (arg(1).isLetter || arg(1) == '_')
   }
 
+  def getOnOff = {
+    getToken
+    expect(On, Off)
+    val r = token is On
+    getToken
+    r
+  }
   def processHtmlComment {
     val savedPos = startPos
     getToken
-    if (token in (Def, End)) {
+    if (token is Interpretation)
+      interpretation = getOnOff
+    if (token is EnableI18nCache)
+      enableI18nCache = getOnOff
+    else if (token in (Def, End)) {
       val start = token is Def
       endTemplate(savedPos)
       if (start)
@@ -195,7 +256,7 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
     val usage =
       if (token is Colon) {
         getToken
-        expect(String, I18n_, I18nJs, Js, Raw, Xml, Field, Label, Control, Help, Error)
+        expect(String, I18n_, I18nJs, Js, Raw, Xml, Field, Label, Control, Help, Error, Uri)
         val x = token.symbol
         // Position now just after the usage: : $arg:js^ or $arg.member:js^
         template.verbatimPos = pos
@@ -216,6 +277,7 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
       case Control => (T_BASE_FIELD, "ft.transform(_).renderControl(oc)" << fullMemberName)
       case Help => (T_BASE_FIELD, "ft.transform(_).renderHelp(oc)" << fullMemberName)
       case Error => (T_BASE_FIELD, "ft.transform(_).renderError(oc)" << fullMemberName)
+      case Uri => (T_URI, "oc.out.write(toHtml(_.format(oc)))" << fullMemberName)
       case _ => Errors.fatal("Invalid usage type _ for _." << (usage, fullMemberName))
     }
 
@@ -239,6 +301,30 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
         template.verbatim(dollarPos, false)
         processReference(argument, lineNumber, posAfterArgumentName, template)
     }
+  }
+
+  def handleHardStringToken(del: Char, symbol: LexSymbol) = {
+    getQuoted(del, true, symbol)
+    val startPos = token.pos
+    currentTemplate match {
+      case None =>
+      case Some(template) =>
+        template.verbatim(startPos, pos, false)
+        token.symbol match {
+          case `hardCodedI18n` => template.bodyWriteI18n(token.value)
+          case `hardCodedUri` => template.bodyWriteUri(token.value)
+          case other => Errors.badValue(other)
+        }
+    }
+  }
+
+  override def getMiscellaneous {
+    if (currentChar == '{' && interpretation)
+      handleHardStringToken('}', hardCodedI18n)
+    else if (currentChar == '[' && interpretation)
+      handleHardStringToken(']', hardCodedUri)
+    else
+      super.getMiscellaneous
   }
 
   def compile = Errors.liveTrap("_ at line _" << (file, token.lineNumber)) {

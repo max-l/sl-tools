@@ -12,6 +12,7 @@ package object epoxy {
   val T_STRING = nameOf(classOf[String])
   val T_I18N = nameOf(classOf[I18n])
   val T_XML = nameOf(<a/>.getClass)
+  val T_URI = "Uri"
 
   def nameOf(c: Class[_]) = Util.split(c.getName, '.').last
 }

@@ -14,7 +14,8 @@ class TemplateScanner extends EpoxyScanner with Logging {
     else {
       val imports = List("com.strong_links.core._", "com.strong_links.core.Convert._",
         "com.strong_links.scalaforms.BaseField", "com.strong_links.scalaforms.OutputContext",
-        "com.strong_links.scalaforms.fieldTransformer", <a/>.getClass.getCanonicalName)
+        "com.strong_links.scalaforms.fieldTransformer", "com.strong_links.scalaforms.Uri",
+        <a/>.getClass.getCanonicalName)
       generateScalaFile(entries, outputFile, file, masterPackageName, packageName, className, objectName, true, imports)(_.code)
       logDebug("Generated file: _." << outputFile)
     }
