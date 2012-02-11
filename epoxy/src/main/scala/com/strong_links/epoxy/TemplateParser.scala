@@ -9,7 +9,7 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
 
   val HtmlStartComment = specialSymbol("<!--")
   val HtmlEndComment = specialSymbol("-->")
-  val Def, End, Interpretation, On, Off, PreserveSpaces, EnableI18nCache = idSymbol
+  val Def, End, Interpretation, On, Off, PreserveSpaces, EnableI18nCache, EnableUriCache = idSymbol
   val String = idSymbol("String")
   val I18n_ = idSymbol("I18n")
   val I18nJs = idSymbol("I18nJs")
@@ -22,12 +22,14 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
   val Help = idSymbol("Help")
   val Error = idSymbol("Error")
   val Uri = idSymbol("Uri")
-  val hardCodedI18n = symbol
-  val hardCodedUri = symbol
+  val HardCodedI18n = symbol
+  val HardCodedUri = symbol
 
   var interpretation = true
   var enableI18nCache = false
-  var i18nCacheSequence = 0
+  var enableUriCache = false
+  var cacheSequence = 0
+  val cache = new LeveledCharStream
 
   class TemplateArgumentMember(val name: String, val firstUseLine: Int, val baseType: String)
 
@@ -52,7 +54,6 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
     var firstVerbatim = true
     val firstVerbatimPos = startPos
     var verbatimPos = startPos
-    val i18nCache = new LeveledCharStream
 
     def massage(s: String, keepInitialSpace: Boolean, keepTrailingSpace: Boolean) = {
       val addSpaceLeft = keepInitialSpace && (s.length > 0) && s(0).isSpaceChar
@@ -86,25 +87,28 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
         body.println("oc.out.write(\"" + x + "\")")
     }
 
-    def bodyWriteI18n(i18n: String) {
-      val x = Convert.toScala(i18n)
-      if (!x.isEmpty) {
-        val i18nCall = "I18n(\"" + x + "\")"
-        val z =
-          if (enableI18nCache) {
-            val varName = "__i18n" + i18nCacheSequence
-            i18nCacheSequence += 1
-            i18nCache.println("private lazy val _ = _" << (varName, i18nCall))
-            varName
-          } else
-            i18nCall
-        body.println("oc.out.write(_.f(oc.i18nLocale))" << z)
-      }
+    def bodyWriteCache[T](data: T, enabled: Boolean, exp: T => String, formatter: String => String) {
+      val callValue = exp(data)
+      val out =
+        if (enabled) {
+          val varName = "__cache" + cacheSequence
+          cacheSequence += 1
+          cache.println("val _ = _" << (varName, callValue))
+          varName
+        } else
+          callValue
+      body.println("oc.out.write(_)" << formatter(out))
+    }
+
+    def bodyWriteI18n(x: String) = if (x != "") {
+      bodyWriteCache[String](Convert.toScala(x), enableI18nCache,
+        "I18n(\"" + _ + "\")", _ + ".f(oc.i18nLocale)")
     }
 
     def bodyWriteUri(uri: String) {
       val (module, method) = Errors.trap("Decoding Uri _" << uri) { Util.splitTwo(uri, '/') }
-      body.println("oc.out.write(_.uriFor(__._).format(oc))" << (module, method))
+      bodyWriteCache[(String, String)]((module, method), enableUriCache,
+        x => "_.uriFor(__._)" << (x._1, x._2), _ + ".format(oc)")
     }
 
     def verbatim(endPos: Int, restartPos: Int, endingTemplate: Boolean): Unit = {
@@ -126,11 +130,6 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
     def generateCode = {
       val isUsingField = arguments.exists(_.finalMembers.exists(_.baseType == T_BASE_FIELD))
       code = IO.usingLeveledCharStream { cs =>
-        val i18nCacheCode = i18nCache.close
-        if (i18nCacheCode != "") {
-          cs.println
-          cs.println(i18nCacheCode)
-        }
         cs.block("def _1_2(implicit oc: OutputContext)" << (templateName, makeArgList)) {
           cs.printlnIf(isUsingField, "val ft = fieldTransformer.get")
           cs.println(body.close)
@@ -213,8 +212,10 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
     getToken
     if (token is Interpretation)
       interpretation = getOnOff
-    if (token is EnableI18nCache)
+    else if (token is EnableI18nCache)
       enableI18nCache = getOnOff
+    else if (token is EnableUriCache)
+      enableUriCache = getOnOff
     else if (token in (Def, End)) {
       val start = token is Def
       endTemplate(savedPos)
@@ -311,8 +312,10 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
       case Some(template) =>
         template.verbatim(startPos, pos, false)
         token.symbol match {
-          case `hardCodedI18n` => template.bodyWriteI18n(token.value)
-          case `hardCodedUri` => template.bodyWriteUri(token.value)
+          case HardCodedI18n =>
+            template.bodyWriteI18n(token.value)
+          case HardCodedUri =>
+            template.bodyWriteUri(token.value)
           case other => Errors.badValue(other)
         }
     }
@@ -320,9 +323,9 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
 
   override def getMiscellaneous {
     if (currentChar == '{' && interpretation)
-      handleHardStringToken('}', hardCodedI18n)
+      handleHardStringToken('}', HardCodedI18n)
     else if (currentChar == '[' && interpretation)
-      handleHardStringToken(']', hardCodedUri)
+      handleHardStringToken(']', HardCodedUri)
     else
       super.getMiscellaneous
   }
@@ -341,6 +344,6 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
     }
     endTemplate(pos)
 
-    templates.values.toList.sortWith(_.templateName < _.templateName)
+    (templates.values.toList.sortWith(_.templateName < _.templateName), cache.close)
   }
 }

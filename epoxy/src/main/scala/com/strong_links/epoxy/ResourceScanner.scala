@@ -79,7 +79,7 @@ class ResourceScanner extends EpoxyScanner {
 
     if (generate) {
       logDebug("Generating new _." <<< outputFile)
-      generateScalaFile(entries, outputFile, directory, masterPackageName, packageName, className, objectName, false, Nil) { e =>
+      generateScalaFile(entries, "", outputFile, directory, masterPackageName, packageName, className, objectName, false, Nil) { e =>
         val cs = new LeveledCharStream
         cs.println("def _ = {" << e.makeFunctionName(directory))
         cs.increaseLevel
