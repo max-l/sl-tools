@@ -11,10 +11,7 @@ object Buildz extends Build {
     organization := "com.strong-links",
     version := "0.2",
     scalaVersion := "2.9.1",
-    logLevel := Level.Warn,
     sbtPlugin := true,
-    logLevel in Global := Level.Warn,
-    publishArtifact in packageDoc := false,
     libraryDependencies ++= Seq(core)
   )
   
