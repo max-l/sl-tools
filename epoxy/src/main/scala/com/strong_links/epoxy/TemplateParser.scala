@@ -24,6 +24,7 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
   val Uri = idSymbol("Uri")
   val HardCodedI18n = symbol
   val HardCodedUri = symbol
+  val If, Endif = idSymbol
 
   var interpretation = true
   var enableI18nCache = false
@@ -54,6 +55,23 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
     var firstVerbatim = true
     val firstVerbatimPos = startPos
     var verbatimPos = startPos
+    var ifLevel = 0
+
+    def processIf(templateArgument: TemplateArgument) {
+      println("*** IF _" << ifLevel)
+      body.println("if (true) {")
+      body.increaseLevel
+      ifLevel += 1
+    }
+
+    def processEndif {
+      println("*** ENDIF _" << ifLevel)
+      ifLevel -= 1
+      if (ifLevel < 0)
+        Errors.fatal("If level dropped below 0 (now _)." << ifLevel)
+      body.decreaseLevel
+      body.println("}")
+    }
 
     def massage(s: String, keepInitialSpace: Boolean, keepTrailingSpace: Boolean) = {
       val addSpaceLeft = keepInitialSpace && (s.length > 0) && s(0).isSpaceChar
@@ -137,6 +155,8 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
         arguments.map(arg => arg.name + ": " + arg.makeType(templateName)).mkString("(", ", ", ")")
 
     def generateCode = {
+      if (ifLevel != 0)
+        Errors.fatal("If level not 0.")
       val isUsingField = arguments.exists(_.finalMembers.exists(_.baseType == T_BASE_FIELD))
       code = IO.usingLeveledCharStream { cs =>
         cs.block("def _1_2(implicit oc: OutputContext)" << (templateName, makeArgList)) {
@@ -216,20 +236,39 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
     getToken
     r
   }
-  def processHtmlComment {
+
+  def processGlobalHtmlComment {
     val savedPos = startPos
     getToken
-    if (token is Interpretation)
-      interpretation = getOnOff
-    else if (token is EnableI18nCache)
-      enableI18nCache = getOnOff
-    else if (token is EnableUriCache)
-      enableUriCache = getOnOff
-    else if (token in (Def, End)) {
-      val start = token is Def
-      endTemplate(savedPos)
-      if (start)
-        startTemplate
+    (token.symbol, currentTemplate) match {
+      case (Interpretation, _) =>
+        interpretation = getOnOff
+      case (EnableI18nCache, _) =>
+        enableI18nCache = getOnOff
+      case (EnableUriCache, _) =>
+        enableUriCache = getOnOff
+      case (Def | End, _) =>
+        val start = token is Def
+        endTemplate(savedPos)
+        if (start)
+          startTemplate
+      case (If, Some(template)) =>
+        getToken
+        expect(Identifier)
+        if (!isArgumentName(token.value))
+          Errors.fatal("Invalid if argument name _." << token.value)
+        val argumentName = token.value.substring(1)
+        template.arguments.find(_.name == argumentName) match {
+          case None =>
+            Errors.fatal("Unknown if argument name _." << argumentName)
+          case Some(argument) =>
+            template.processIf(argument)
+        }
+        getToken
+      case (Endif, Some(template)) =>
+        template.processEndif
+        getToken
+      case _ =>
     }
   }
 
@@ -344,7 +383,7 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
     while (token isNot Eof) {
       (token.symbol, currentTemplate) match {
         case (HtmlStartComment, _) =>
-          processHtmlComment
+          processGlobalHtmlComment
         case (Identifier, Some(template)) if (isArgumentName(token.value)) =>
           processDollar(startPos, token.lineNumber, template)
         case _ =>
