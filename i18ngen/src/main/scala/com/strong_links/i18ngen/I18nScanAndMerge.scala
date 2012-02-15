@@ -136,9 +136,9 @@ object I18nScanAndMerge extends Logging {
           Errors.fatal("Calls not found for package _." << c.packageName)
         case Some(callSummaries) =>
           // Do an actual merge for full localizations.
-          c.fullI18nLocales.foreach(new Merger(runConfig, c, _, callSummaries).run)
+          c.fullI18nLocales.par.foreach(new Merger(runConfig, c, _, callSummaries).run)
           // Only do a touch not a run for delta localizations (create Po file if it does not exist).
-          c.deltaI18nLocales.foreach(new Merger(runConfig, c, _, Nil))
+          c.deltaI18nLocales.par.foreach(new Merger(runConfig, c, _, Nil))
       }
     }
 

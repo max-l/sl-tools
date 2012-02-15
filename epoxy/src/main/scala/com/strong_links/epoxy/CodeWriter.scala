@@ -5,7 +5,7 @@ import com.strong_links.core.lex._
 
 class CodeWriter(templateFunction: TemplateFunction, initialStartToken: LexToken) {
 
-  private var flushStartToken = initialStartToken
+  private var flushStartToken: Option[LexToken] = Some(initialStartToken)
   private val out = new LeveledCharStream
 
   private def massage(s: String, keepInitialSpace: Boolean, keepTrailingSpace: Boolean) = {
@@ -63,17 +63,20 @@ class CodeWriter(templateFunction: TemplateFunction, initialStartToken: LexToken
     }
   }
 
-  def flush(endToken: LexToken, restartToken: LexToken) {
-    flush(endToken, false)
-    flushStartToken = restartToken
+  def staticRestartAt(restartToken: LexToken) {
+    flushStartToken = Some(restartToken)
   }
 
-  def flush(endToken: LexToken): Unit = flush(endToken, true)
-
-  def flush(endToken: LexToken, endingTemplate: Boolean) {
-    val x = templateFunction.templateCompiler.getDataBetween(flushStartToken, true, endToken, false, true)
-    def eval(c: Boolean) = if (c) templateFunction.preserveSpace else true
-    writeMassaged(x, eval(flushStartToken eq initialStartToken), eval(endingTemplate))
+  def staticFlush(endToken: LexToken, endingTemplate: Boolean) {
+    flushStartToken match {
+      case None =>
+        Errors.fatal("No flush start token is active.")
+      case Some(fst) =>
+        val x = templateFunction.templateCompiler.getDataBetween(fst, true, endToken, false, true)
+        def eval(c: Boolean) = if (c) templateFunction.preserveSpace else true
+        writeMassaged(x, eval(flushStartToken eq initialStartToken), eval(endingTemplate))
+        flushStartToken = None
+    }
   }
 
   def generateCode = {

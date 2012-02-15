@@ -51,8 +51,7 @@ class TemplateFunction(val templateCompiler: TemplateCompiler) {
     (ps, di, ci, cu)
   }
 
-  def processReference(codeWriter: CodeWriter, argumentToken: LexToken,
-                       templateFunctionArgument: TemplateFunctionArgument, lineNumber: Int) {
+  def processReference(codeWriter: CodeWriter, templateFunctionArgument: TemplateFunctionArgument, lineNumber: Int) {
 
     // Check if first use, and if so, whether the usage as object/non object is consistent.
     val isObject = skipped(Dot)
@@ -68,21 +67,44 @@ class TemplateFunction(val templateCompiler: TemplateCompiler) {
     } else
       String
 
-    codeWriter.flush(argumentToken, token)
-
     val member = templateFunctionArgument.addMember(memberName, usage, lineNumber)
 
     codeWriter.write(member.render(usage))
   }
 
+  //  def getArgumentMember(codeWriter: CodeWriter, flushIfFound: Boolean) = {
+  //    // We enter here with an identifier. 
+  //    expect(Identifier)
+  //    val startLineNumber = token.lineNumber
+  //    if (token.value.startsWith("$") && token.value.length > 1 && (token.value(1).isLetter || token.value(1) == '_')) {
+  //      val argumentName = token.value.substring(1)
+  //      arguments.find(_.name == argumentName) match {
+  //        case None => None
+  //        case Some(argument) =>
+  //          if (flushIfFound)
+  //            codeWriter.staticFlush(token, false)
+  //          getToken
+  //          val isObject = skipped(Dot)
+  //          argument.usedAs(isObject, startLineNumber)
+  //          val memberName = if (isObject) Some(eatToken(Identifier).value) else None
+  //          val member = argument.addMember(memberName)
+  //
+  //          Some(argument)
+  //      }
+  //    } else
+  //      None
+  //  }
+
   def processDollar(codeWriter: CodeWriter) {
-    // We enter here with an $identifier. Process it only if we know it.
+    // We enter here with an identifier. Process it only if we know it.
     val argumentToken = eatToken(Identifier)
     val argumentName = argumentToken.value.substring(1)
     arguments.find(_.name == argumentName) match {
       case None =>
       case Some(argument) =>
-        processReference(codeWriter, argumentToken, argument, lineNumber)
+        codeWriter.staticFlush(argumentToken, false)
+        processReference(codeWriter, argument, lineNumber)
+        codeWriter.staticRestartAt(token)
     }
   }
 
@@ -93,10 +115,11 @@ class TemplateFunction(val templateCompiler: TemplateCompiler) {
     var hasNextFunction = false
     def processPair(leftSymbol: LexSymbol, rightSymbol: LexSymbol, f: String => Unit) {
       val leftToken = eatToken(leftSymbol)
+      codeWriter.staticFlush(leftToken, false)
       findToken(rightSymbol)
       val rightToken = eatToken(rightSymbol)
+      codeWriter.staticRestartAt(token)
       val x = getDataBetween(leftToken, false, rightToken, false, false)
-      codeWriter.flush(leftToken, token)
       f(x)
     }
     while (!done)
@@ -106,21 +129,24 @@ class TemplateFunction(val templateCompiler: TemplateCompiler) {
         case HtmlStartComment =>
           val htmlStartToken = eatAnyToken
           if (token is End) {
+            codeWriter.staticFlush(htmlStartToken, false)
             skip(End)
             eatToken(HtmlEndComment)
-            codeWriter.flush(htmlStartToken)
+            codeWriter.staticRestartAt(token)
             done = true
           } else if (token is Def) {
             // Stay on token "Def" for the processing of the next function.
-            codeWriter.flush(htmlStartToken)
+            codeWriter.staticFlush(htmlStartToken, true)
             done = true
             hasNextFunction = true
+            //          } else if (token is Ifdef) {
+            //          } else if (token is Endif) {
           } else {
             findToken(HtmlEndComment)
             skip(HtmlEndComment)
           }
         case Eof =>
-          codeWriter.flush(token)
+          codeWriter.staticFlush(token, true)
           done = true
         case LeftBrace if !disableInterpretation =>
           processPair(LeftBrace, RightBrace, codeWriter.writeI18n)
