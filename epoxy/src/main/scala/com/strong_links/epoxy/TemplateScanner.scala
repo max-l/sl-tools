@@ -7,8 +7,8 @@ import java.io.File
 class TemplateScanner extends EpoxyScanner with Logging {
 
   def generateTemplate(file: File, outputFile: File, masterPackageName: String, packageName: String,
-    className: String, objectName: String) {
-    val (entries, cacheCode) = new TemplateParser(file).compile
+                       className: String, objectName: String) {
+    val (entries, cacheCode) = new TemplateCompiler(file).compile
     if (entries.isEmpty)
       IO.deleteFile(outputFile, true)
     else {
@@ -38,7 +38,7 @@ class TemplateScanner extends EpoxyScanner with Logging {
         x
     }
     val addedPath = rootPackage match {
-      case None => ""
+      case None     => ""
       case Some(rp) => Util.split(rp, '.').mkString("", IO.dirSeparator, IO.dirSeparator)
     }
     val objectName = className

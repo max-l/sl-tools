@@ -54,7 +54,9 @@ object I18nGen {
         Nil
       else {
         Logging.setLogger(c => wrapSbtLogger(streams.log, lLevel))
-        f(conf)
+        val r = f(conf)
+        Logging.resetLogger
+        r
       }
     }
 

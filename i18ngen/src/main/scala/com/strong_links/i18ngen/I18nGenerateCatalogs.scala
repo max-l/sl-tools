@@ -11,7 +11,7 @@ object I18nGenerateCatalogs extends Logging {
 
       val outputFile = runConfig.getOutputFileFor(i18nConfig.packageName, "PackageI18nConfig.scala")
 
-      logDebug("Generating _." << outputFile)
+      logInfo("Generating _." << outputFile)
 
       val b = scala.collection.mutable.ListBuffer[String]()
       b += ("package " + i18nConfig.packageName)

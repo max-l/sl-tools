@@ -8,7 +8,7 @@ class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) w
 
   type Calls = scala.collection.mutable.ListBuffer[SourceI18nCall]
 
-  val ScalaLineComments, BlockComments = symbol
+  val ScalaLineComments = symbol
   val I18nNeutral = idSymbol("I18n")
   val I18nNonNeutral = idSymbol("I18nPlural")
   val I18nNeutralCtxt = idSymbol("I18nCtxt")
@@ -26,32 +26,13 @@ class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) w
 
   def isVerbatimQuotes = currentChar == '"' && nextChar == '"' && nextNextChar == '"'
 
-  private def isBlockCommentStart = currentChar == '/' && nextChar == '*'
-
-  private def isBlockCommentEnd = currentChar == '*' && nextChar == '/'
-
-  private def getBlockComments {
-    val start = pos
-    move(2)
-    var level = 1
-    do {
-      eatUntil(isBlockCommentStart || isBlockCommentEnd)
-      if (isBlockCommentStart)
-        level += 1
-      else
-        level -= 1
-      move(2)
-    } while (level != 0)
-    setToken(BlockComments, data.substring(start, pos))
-  }
-
   private def getVerbatimString {
     def escape(c: Char) = c match {
       case '\n' => "\\n"
       case '\'' => "\\'"
-      case '"' => "\\\""
+      case '"'  => "\\\""
       case '\\' => "\\\\"
-      case _ => c.toString
+      case _    => c.toString
     }
     move(3)
     val s = eatUntil(isVerbatimQuotes)
@@ -205,15 +186,13 @@ class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) w
 
   case class PackageInfo(packageSegments: List[String], objectPackage: Boolean, isBlock: Boolean)
 
-  val postPackageSet = Set(Semicolon, Trait, _Class, Type, Eof, Package, LeftBrace, RightBrace, _Object, Import)
-
   def getPackageInfo = {
     skip(Package)
     val objectPackage = token is _Object
     if (objectPackage)
       getToken
     val packageSegments = eatPackageSegments
-    while (token notIn postPackageSet)
+    while (token notIn (Semicolon, Trait, _Class, Type, Eof, Package, LeftBrace, RightBrace, _Object, Import))
       getToken
     val isBlock = token is LeftBrace
     if (token is Semicolon)
