@@ -96,7 +96,7 @@ class CodeWriter(templateFunction: TemplateFunction, initialStartToken: LexToken
 
       for (arg <- templateFunction.arguments; if arg.isObject)
         cs.block("type _ =" << arg.makeType) {
-          arg.members.foreach(m => cs.println("def _: _" << (m.memberName, m.baseType)))
+          arg.members.foreach(m => cs.println("def _: _" << (m.memberName, m.getBaseType)))
         }
     }
   }

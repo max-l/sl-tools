@@ -5,9 +5,19 @@ import com.strong_links.core.lex._
 
 class TemplateFunction(val templateCompiler: TemplateCompiler) {
 
+  // We import the whole TemplateCompiler parent class. The alternative would have been to define TemplateFunciton as an
+  // inner class of TemplateCompiler, but this would have led to an oversized source file.
   import templateCompiler._
 
-  def getFunctionName = {
+  def isValidArgumentName(n: String) = n.startsWith("$") && n.length > 1 && (n(1).isLetter || n(1) == '_')
+
+  def extractArgumentName(n: String) = {
+    if (!isValidArgumentName(n))
+      Errors.fatal("Invalid argument name _ (must start with a $ and must have a length of 2 or more." << n)
+    n.substring(1)
+  }
+
+  def getTemplateFunctionName = {
     val name = eatToken(Identifier).value
     if (!name(0).isLower)
       Errors.fatal("The function name _ does not start with a lowercase letter." << name)
@@ -18,15 +28,8 @@ class TemplateFunction(val templateCompiler: TemplateCompiler) {
 
   def getTemplateFunctionArguments = {
     var b = scala.collection.mutable.ListBuffer[TemplateFunctionArgument]()
-    def grabArgument {
-      val argumentName = eatToken(Identifier).value
-      if (!argumentName.startsWith("$"))
-        Errors.fatal("The argument name _ does not start with a $ sign." << argumentName)
-      if (argumentName.length == 1)
-        Errors.fatal("The argument name _ is invalid; letters are required." << argumentName)
-      b += new TemplateFunctionArgument(this, argumentName.substring(1))
-    }
     if (token is LeftParenthesis) {
+      def grabArgument { b += new TemplateFunctionArgument(this, extractArgumentName(eatToken(Identifier).value)) }
       skip(LeftParenthesis)
       grabArgument
       while (token is Comma) {
@@ -51,60 +54,47 @@ class TemplateFunction(val templateCompiler: TemplateCompiler) {
     (ps, di, ci, cu)
   }
 
-  def processReference(codeWriter: CodeWriter, templateFunctionArgument: TemplateFunctionArgument, lineNumber: Int) {
-
-    // Check if first use, and if so, whether the usage as object/non object is consistent.
-    val isObject = skipped(Dot)
-
-    templateFunctionArgument.usedAs(isObject, lineNumber)
-
-    // Get the member name. 
-    val memberName = if (isObject) Some(eatToken(Identifier).value) else None
-
-    val usage = if (token is Colon) {
-      skip(Colon)
-      eatToken(String, I18n_, I18nJs, Js, Raw, Xml, Field, Label, Control, Help, Error, Uri).symbol
+  def getArgumentMember(codeWriter: CodeWriter, flushIfFound: Boolean) = {
+    expect(Identifier)
+    if (isValidArgumentName(token.value)) {
+      arguments.find(_.name == extractArgumentName(token.value)) match {
+        case None =>
+          None
+        case Some(argument) =>
+          if (flushIfFound)
+            codeWriter.staticFlush(token, false)
+          val startLineNumber = token.lineNumber
+          skip(Identifier)
+          val isObject = skipped(Dot)
+          argument.usedAs(isObject, startLineNumber)
+          val memberName = if (isObject) Some(eatToken(Identifier).value) else None
+          Some(argument.searchMember(memberName))
+      }
     } else
-      String
-
-    val member = templateFunctionArgument.addMember(memberName, usage, lineNumber)
-
-    codeWriter.write(member.render(usage))
+      None
   }
 
-  //  def getArgumentMember(codeWriter: CodeWriter, flushIfFound: Boolean) = {
-  //    // We enter here with an identifier. 
-  //    expect(Identifier)
-  //    val startLineNumber = token.lineNumber
-  //    if (token.value.startsWith("$") && token.value.length > 1 && (token.value(1).isLetter || token.value(1) == '_')) {
-  //      val argumentName = token.value.substring(1)
-  //      arguments.find(_.name == argumentName) match {
-  //        case None => None
-  //        case Some(argument) =>
-  //          if (flushIfFound)
-  //            codeWriter.staticFlush(token, false)
-  //          getToken
-  //          val isObject = skipped(Dot)
-  //          argument.usedAs(isObject, startLineNumber)
-  //          val memberName = if (isObject) Some(eatToken(Identifier).value) else None
-  //          val member = argument.addMember(memberName)
-  //
-  //          Some(argument)
-  //      }
-  //    } else
-  //      None
-  //  }
+  def processDollarIdentifier(codeWriter: CodeWriter) {
 
-  def processDollar(codeWriter: CodeWriter) {
-    // We enter here with an identifier. Process it only if we know it.
-    val argumentToken = eatToken(Identifier)
-    val argumentName = argumentToken.value.substring(1)
-    arguments.find(_.name == argumentName) match {
+    val startLineNumber = token.lineNumber
+
+    getArgumentMember(codeWriter, true) match {
+
       case None =>
-      case Some(argument) =>
-        codeWriter.staticFlush(argumentToken, false)
-        processReference(codeWriter, argument, lineNumber)
+        getToken
+
+      case Some(member) =>
+        val usage = if (token is Colon) {
+          skip(Colon)
+          eatToken(String, I18n_, I18nJs, Js, Raw, Xml, Field, Label, Control, Help, Error, Uri).symbol
+        } else
+          String
+
         codeWriter.staticRestartAt(token)
+
+        member.usedAs(usage, startLineNumber)
+
+        codeWriter.write(member.render(usage))
     }
   }
 
@@ -124,8 +114,8 @@ class TemplateFunction(val templateCompiler: TemplateCompiler) {
     }
     while (!done)
       token.symbol match {
-        case Identifier if (isArgumentName(token.value)) =>
-          processDollar(codeWriter)
+        case Identifier if (token.value.startsWith("$")) =>
+          processDollarIdentifier(codeWriter)
         case HtmlStartComment =>
           val htmlStartToken = eatAnyToken
           if (token is End) {
@@ -172,16 +162,18 @@ class TemplateFunction(val templateCompiler: TemplateCompiler) {
 
   def usesFieldTransformer = arguments.exists(_.usesFieldTransformer)
 
+  // Constructor start --
+
   var ifdefLevel = 0
 
-  // Remember on which line this funciton appears.
+  // Remember on which line this function appears.
   val lineNumber = token.lineNumber
 
   // We get here with a current token being "def", check that.
-  eatToken(Def)
+  skip(Def)
 
   // The next token is the function name.
-  val name = getFunctionName
+  val name = getTemplateFunctionName
 
   // Get the function arguments, if any.
   val arguments = getTemplateFunctionArguments
@@ -192,6 +184,7 @@ class TemplateFunction(val templateCompiler: TemplateCompiler) {
   // Then expect eof of comment.
   skip(HtmlEndComment)
 
+  // Then parse the function body itself.
   val (code, hasNextFunction) = parseFunctionBody
 }
 

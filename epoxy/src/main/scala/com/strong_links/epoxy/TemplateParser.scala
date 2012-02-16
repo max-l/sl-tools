@@ -7,10 +7,6 @@ import java.io.File
 
 class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
 
-  def isArgumentName(arg: String) = {
-    arg.startsWith("$") && arg.length > 1 && (arg(1).isLetter || arg(1) == '_')
-  }
-
   def cleanComments(s: String): String = {
     val pos = s.indexOf(HtmlStartComment.special)
     if (pos == -1)
