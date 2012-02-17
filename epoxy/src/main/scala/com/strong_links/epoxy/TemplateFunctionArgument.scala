@@ -5,6 +5,8 @@ import com.strong_links.core.lex._
 
 class TemplateFunctionArgument(val templateFunction: TemplateFunction, val name: String) {
 
+  val externalName = "$" + name
+
   private var _isObject: Option[Boolean] = None
   private var _lineNumber: Option[Int] = None
 
@@ -38,7 +40,7 @@ class TemplateFunctionArgument(val templateFunction: TemplateFunction, val name:
     if (isObject)
       templateFunction.name.capitalize + "_" + name.capitalize
     else
-      _members("").getBaseType
+      _members("").getFinalType
   }
 
   // Search a member and return it. Create if it does not exist.
@@ -54,6 +56,6 @@ class TemplateFunctionArgument(val templateFunction: TemplateFunction, val name:
     }
   }
 
-  def usesFieldTransformer = _members.values.exists(_.getBaseType == T_BASE_FIELD)
+  def usesFieldTransformer = _members.values.exists(_.isBaseField)
 }
 

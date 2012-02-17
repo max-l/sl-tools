@@ -11,9 +11,13 @@ class TemplateFunction(val templateCompiler: TemplateCompiler) {
 
   def isValidArgumentName(n: String) = n.startsWith("$") && n.length > 1 && (n(1).isLetter || n(1) == '_')
 
+  def argumentNameError(n: String) = {
+    Errors.fatal("Invalid argument name _ (it must start with a '$' and it must have a length of 2 or more)." << n)
+  }
+
   def extractArgumentName(n: String) = {
     if (!isValidArgumentName(n))
-      Errors.fatal("Invalid argument name _ (must start with a $ and must have a length of 2 or more." << n)
+      argumentNameError(n)
     n.substring(1)
   }
 
@@ -42,27 +46,29 @@ class TemplateFunction(val templateCompiler: TemplateCompiler) {
   }
 
   def getOptions = {
-    var ps, di, ci, cu = false
-    while (token in (PreserveSpace, DisableInterpretation, CacheI18n, CacheUri))
+    var pc, di, ci, cu = false
+    while (token in (PreserveComments, DisableInterpretation, CacheI18n, CacheUri))
       eatAnyToken.symbol match {
-        case PreserveSpace         => ps = true
+        case PreserveComments      => pc = true
         case DisableInterpretation => di = true
         case CacheI18n             => ci = true
         case CacheUri              => cu = true
         case _                     => Errors.badValue(token.symbol)
       }
-    (ps, di, ci, cu)
+    (pc, di, ci, cu)
   }
 
-  def getArgumentMember(codeWriter: CodeWriter, flushIfFound: Boolean) = {
+  def getArgumentMember(codeWriter: CodeWriter, flushIfFound: Boolean, mustExist: Boolean) = {
     expect(Identifier)
     if (isValidArgumentName(token.value)) {
       arguments.find(_.name == extractArgumentName(token.value)) match {
         case None =>
+          if (mustExist)
+            Errors.fatal("Unknown argument _." << token.value)
           None
         case Some(argument) =>
           if (flushIfFound)
-            codeWriter.staticFlush(token, false)
+            codeWriter.staticFlush(token)
           val startLineNumber = token.lineNumber
           skip(Identifier)
           val isObject = skipped(Dot)
@@ -70,15 +76,18 @@ class TemplateFunction(val templateCompiler: TemplateCompiler) {
           val memberName = if (isObject) Some(eatToken(Identifier).value) else None
           Some(argument.searchMember(memberName))
       }
-    } else
+    } else {
+      if (mustExist)
+        argumentNameError(token.value)
       None
+    }
   }
 
   def processDollarIdentifier(codeWriter: CodeWriter) {
 
     val startLineNumber = token.lineNumber
 
-    getArgumentMember(codeWriter, true) match {
+    getArgumentMember(codeWriter, true, false) match {
 
       case None =>
         getToken
@@ -86,15 +95,62 @@ class TemplateFunction(val templateCompiler: TemplateCompiler) {
       case Some(member) =>
         val usage = if (token is Colon) {
           skip(Colon)
-          eatToken(String, I18n_, I18nJs, Js, Raw, Xml, Field, Label, Control, Help, Error, Uri).symbol
+          eatToken(Html, I18n_, I18nJs, Js, I18nJsHtml, JsHtml, Raw, Xml, Field, Label, Control, Help, Error, Uri).symbol
         } else
-          String
+          Html
 
         codeWriter.staticRestartAt(token)
 
         member.usedAs(usage, startLineNumber)
 
+        member.optionAs(ifdefStack.exists(_._1 == member), startLineNumber)
+
         codeWriter.write(member.render(usage))
+    }
+  }
+
+  def processHtmlComment(startToken: LexToken, codeWriter: CodeWriter) = {
+    val startLineNumber = token.lineNumber
+    codeWriter.staticFlush(startToken)
+    def commentCommand(code: => Unit) {
+      code
+      skip(HtmlEndComment)
+      codeWriter.staticRestartAt(token)
+    }
+    token.symbol match {
+      case End =>
+        commentCommand { skip(End) }
+        (true, Some(false))
+      case Def =>
+        // Stay on token "Def" for the processing of the next function.
+        (true, Some(true))
+      case Ifdef =>
+        commentCommand {
+          skip(Ifdef)
+          getArgumentMember(codeWriter, false, true) match {
+            case None =>
+              Errors.badLogic
+            case Some(member) =>
+              if (ifdefStack.exists(_._1 == member))
+                Errors.fatal("An 'ifdef' directive is already active for _." << member.fullExternalMemberName)
+              ifdefStack = (member, startLineNumber) :: ifdefStack
+              member.optionAs(true, startLineNumber)
+              codeWriter.pushCase(member)
+          }
+        }
+        (false, None)
+      case Endif =>
+        commentCommand {
+          skip(Endif)
+          if (ifdefStack.isEmpty)
+            Errors.fatal("Unmatched 'ifdef'.")
+          ifdefStack = ifdefStack.tail
+          codeWriter.popCase
+        }
+        (false, None)
+      case _ =>
+        commentCommand { findToken(HtmlEndComment) }
+        (false, None)
     }
   }
 
@@ -105,7 +161,7 @@ class TemplateFunction(val templateCompiler: TemplateCompiler) {
     var hasNextFunction = false
     def processPair(leftSymbol: LexSymbol, rightSymbol: LexSymbol, f: String => Unit) {
       val leftToken = eatToken(leftSymbol)
-      codeWriter.staticFlush(leftToken, false)
+      codeWriter.staticFlush(leftToken)
       findToken(rightSymbol)
       val rightToken = eatToken(rightSymbol)
       codeWriter.staticRestartAt(token)
@@ -117,26 +173,13 @@ class TemplateFunction(val templateCompiler: TemplateCompiler) {
         case Identifier if (token.value.startsWith("$")) =>
           processDollarIdentifier(codeWriter)
         case HtmlStartComment =>
-          val htmlStartToken = eatAnyToken
-          if (token is End) {
-            codeWriter.staticFlush(htmlStartToken, false)
-            skip(End)
-            eatToken(HtmlEndComment)
-            codeWriter.staticRestartAt(token)
-            done = true
-          } else if (token is Def) {
-            // Stay on token "Def" for the processing of the next function.
-            codeWriter.staticFlush(htmlStartToken, true)
-            done = true
-            hasNextFunction = true
-            //          } else if (token is Ifdef) {
-            //          } else if (token is Endif) {
-          } else {
-            findToken(HtmlEndComment)
-            skip(HtmlEndComment)
+          processHtmlComment(eatToken(HtmlStartComment), codeWriter) match {
+            case (d, None) if !d     =>
+            case (d, Some(hnf)) if d => done = true; hasNextFunction = hnf
+            case _                   => Errors.badLogic
           }
         case Eof =>
-          codeWriter.staticFlush(token, true)
+          codeWriter.staticFlush(token)
           done = true
         case LeftBrace if !disableInterpretation =>
           processPair(LeftBrace, RightBrace, codeWriter.writeI18n)
@@ -146,25 +189,40 @@ class TemplateFunction(val templateCompiler: TemplateCompiler) {
           getToken
       }
 
-    if (ifdefLevel != 0)
-      Errors.fatal("Unclosed 'ifdef'.")
+    if (!ifdefStack.isEmpty)
+      Errors.fatal("Unclosed 'ifdef' directive for _, which started at line _." <<
+        (ifdefStack.head._1.fullExternalMemberName, ifdefStack.head._2))
 
-    checkForUnusedArguments
+    val unusedArguments = arguments.filter(_.members.isEmpty).map(_.externalName)
+    if (!unusedArguments.isEmpty)
+      Errors.fatal("These arguments are not used by the function: _" << unusedArguments)
+
+    val undefinedArgumentMemberNames = arguments.flatMap(_.members.filter(!_.hasBaseType).map(_.fullExternalMemberName))
+    if (!undefinedArgumentMemberNames.isEmpty)
+      Errors.fatal("These argument members have an unknown type: _" << undefinedArgumentMemberNames)
 
     (codeWriter.generateCode, hasNextFunction)
   }
 
-  def checkForUnusedArguments {
-    val unusedArguments = arguments.filter(_.members.isEmpty).map(_.name)
-    if (!unusedArguments.isEmpty)
-      Errors.fatal("Unused arguments: _" << unusedArguments)
+  def usesFieldTransformer = arguments.exists(_.usesFieldTransformer)
+
+  def cleanComments(s: String): String = {
+    val pos = s.indexOf(HtmlStartComment.special)
+    if (pos == -1)
+      s
+    else {
+      val z = s.indexOf(HtmlEndComment.special, pos + HtmlStartComment.special.length)
+      if (z == -1)
+        Errors.fatal("Unclosed HTML comment in _." << s)
+      cleanComments(s.substring(0, pos) + s.substring(z + HtmlEndComment.special.length))
+    }
   }
 
-  def usesFieldTransformer = arguments.exists(_.usesFieldTransformer)
+  def massage(s: String) = if (preserveComments) s else cleanComments(s)
 
   // Constructor start --
 
-  var ifdefLevel = 0
+  var ifdefStack = List[(TemplateFunctionArgumentMember, Int)]()
 
   // Remember on which line this function appears.
   val lineNumber = token.lineNumber
@@ -179,7 +237,7 @@ class TemplateFunction(val templateCompiler: TemplateCompiler) {
   val arguments = getTemplateFunctionArguments
 
   // Get options, if any.
-  val (preserveSpace, disableInterpretation, cacheI18n, cacheUri) = getOptions
+  val (preserveComments, disableInterpretation, cacheI18n, cacheUri) = getOptions
 
   // Then expect eof of comment.
   skip(HtmlEndComment)

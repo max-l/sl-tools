@@ -8,21 +8,6 @@ class CodeWriter(templateFunction: TemplateFunction, initialStartToken: LexToken
   private var flushStartToken: Option[LexToken] = Some(initialStartToken)
   private val out = new LeveledCharStream
 
-  private def massage(s: String, keepInitialSpace: Boolean, keepTrailingSpace: Boolean) = {
-    val addSpaceLeft = keepInitialSpace && (s.length > 0) && s(0).isSpaceChar
-    val addSpaceRight = keepTrailingSpace && (s.length > 0) && s(s.length - 1).isSpaceChar
-    val w = s.trim
-    var r = (addSpaceLeft, addSpaceRight) match {
-      case (false, false) => w
-      case (false, true)  => w + " "
-      case (true, false)  => " " + w
-      case (true, true)   => " " + w + " "
-    }
-    if (r == "  ")
-      r = " "
-    templateFunction.templateCompiler.cleanComments(r)
-  }
-
   def write(s: String) {
     out.println(s)
   }
@@ -33,8 +18,8 @@ class CodeWriter(templateFunction: TemplateFunction, initialStartToken: LexToken
       write("oc.out.write(\"" + x + "\")")
   }
 
-  def writeMassaged(s: String, keepInitialSpace: Boolean, keepTrailingSpace: Boolean) {
-    writeStatic(massage(s, keepInitialSpace, keepTrailingSpace))
+  def writeMassaged(s: String) {
+    writeStatic(templateFunction.massage(s))
   }
 
   def writeCache[T](data: T, enabled: Boolean)(exp: T => String, formatter: String => String) {
@@ -67,16 +52,26 @@ class CodeWriter(templateFunction: TemplateFunction, initialStartToken: LexToken
     flushStartToken = Some(restartToken)
   }
 
-  def staticFlush(endToken: LexToken, endingTemplate: Boolean) {
+  def staticFlush(endToken: LexToken) {
     flushStartToken match {
       case None =>
         Errors.fatal("No flush start token is active.")
       case Some(fst) =>
         val x = templateFunction.templateCompiler.getDataBetween(fst, true, endToken, false, true)
-        def eval(c: Boolean) = if (c) templateFunction.preserveSpace else true
-        writeMassaged(x, eval(flushStartToken eq initialStartToken), eval(endingTemplate))
+        writeMassaged(x)
         flushStartToken = None
     }
+  }
+
+  def pushCase(templateFunctionArgumentMember: TemplateFunctionArgumentMember) {
+    import templateFunctionArgumentMember._
+    write("_ match { case None => case Some(_) =>" << (fullMemberName, fullOptionalMemberName))
+    out.increaseLevel
+  }
+
+  def popCase {
+    out.decreaseLevel
+    write("}")
   }
 
   def generateCode = {
@@ -96,7 +91,7 @@ class CodeWriter(templateFunction: TemplateFunction, initialStartToken: LexToken
 
       for (arg <- templateFunction.arguments; if arg.isObject)
         cs.block("type _ =" << arg.makeType) {
-          arg.members.foreach(m => cs.println("def _: _" << (m.memberName, m.getBaseType)))
+          arg.members.foreach(m => cs.println("def _: _" << (m.memberName, m.getFinalType)))
         }
     }
   }
