@@ -105,10 +105,7 @@ object I18nScanAndMerge extends Logging {
     val unknowns = emptySet
 
     def search(packageSegments: List[String]): scala.collection.mutable.Set[SourceI18nCall] =
-      if (packageSegments == Nil)
-        unknowns
-      else
-        callsByPackage.getOrElse(packageSegments, search(packageSegments.init))
+      callsByPackage.getOrElse(packageSegments, unknowns)
 
     calls.foreach(c => search(c.packageSegments) += c)
 
