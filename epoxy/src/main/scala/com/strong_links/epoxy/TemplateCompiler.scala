@@ -16,6 +16,7 @@ class TemplateCompiler(file: File) extends TemplateParser(file) {
     case Xml                                    => T_XML
     case Field | Label | Control | Help | Error => T_BASE_FIELD
     case Uri                                    => T_URI
+    case Template                               => T_TEMPLATE
     case _                                      => Errors.badValue(usage)
   }
 
@@ -34,6 +35,7 @@ class TemplateCompiler(file: File) extends TemplateParser(file) {
     case Help       => "ft.transform(_).renderHelp(oc)" << fullMemberName
     case Error      => "ft.transform(_).renderError(oc)" << fullMemberName
     case Uri        => "oc.out.write(toHtml(_.toString))" << fullMemberName
+    case Template   => "_.emit(oc)" << fullMemberName
     case _          => Errors.badValue(usage)
   }
 

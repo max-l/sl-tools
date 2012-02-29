@@ -95,7 +95,7 @@ class TemplateFunction(val templateCompiler: TemplateCompiler) {
       case Some(member) =>
         val usage = if (token is Colon) {
           skip(Colon)
-          eatToken(Html, I18n_, I18nJs, Js, I18nJsHtml, JsHtml, Raw, Xml, Field, Label, Control, Help, Error, Uri).symbol
+          eatToken(Html, I18n_, I18nJs, Js, I18nJsHtml, JsHtml, Raw, Xml, Field, Label, Control, Help, Error, Uri, Template).symbol
         } else
           Html
 

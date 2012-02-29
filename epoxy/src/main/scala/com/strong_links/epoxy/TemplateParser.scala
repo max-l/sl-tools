@@ -27,6 +27,7 @@ class TemplateParser(file: File) extends LexParser(IO.loadUtf8TextFile(file)) {
   val Label = idSymbol("Label")
   val Help = idSymbol("Help")
   val Error = idSymbol("Error")
+  val Template = idSymbol("Template")
   val Uri = idSymbol("Uri")
   val HardCodedI18n = symbol
   val HardCodedUri = symbol
