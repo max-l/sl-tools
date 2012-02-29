@@ -28,10 +28,10 @@ class TemplateScanner extends EpoxyScanner with Logging {
     if (entries.isEmpty)
       IO.deleteFile(outputFile, true)
     else {
-      println("Master package name: _" << masterPackageName)
-      println("Package name: _" << packageName)
       val imports = List("com.strong_links.core._", "com.strong_links.core.Convert._",
         "com.strong_links.scalaforms.BaseField", "com.strong_links.scalaforms.OutputContext",
+        "com.strong_links.scalaforms.TemplateFunction",
+        "com.strong_links.scalaforms.StringOutputStream",
         "com.strong_links.scalaforms.fieldTransformer", "com.strong_links.scalaforms.Uri",
         <a/>.getClass.getCanonicalName, i18nCatalogPackageName)
       generateScalaFile(entries, cacheCode, outputFile, file, masterPackageName, packageName, className, objectName, true, imports)(_.code)

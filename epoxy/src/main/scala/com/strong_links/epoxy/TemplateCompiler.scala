@@ -33,7 +33,7 @@ class TemplateCompiler(file: File) extends TemplateParser(file) {
     case Control    => "ft.transform(_).renderControl(oc)" << fullMemberName
     case Help       => "ft.transform(_).renderHelp(oc)" << fullMemberName
     case Error      => "ft.transform(_).renderError(oc)" << fullMemberName
-    case Uri        => "oc.out.write(toHtml(_.format(oc)))" << fullMemberName
+    case Uri        => "oc.out.write(toHtml(_.toString))" << fullMemberName
     case _          => Errors.badValue(usage)
   }
 

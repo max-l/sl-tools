@@ -84,9 +84,11 @@ class CodeWriter(templateFunction: TemplateFunction, initialStartToken: LexToken
 
     IO.usingLeveledCharStream { cs =>
 
-      cs.block("def _1_2(implicit oc: OutputContext)" << (templateFunction.name, makeArgList)) {
-        cs.printlnIf(isUsingField, "val ft = fieldTransformer.get")
-        cs.println(out.close)
+      cs.block("def _1_2 = new TemplateFunction" << (templateFunction.name, makeArgList)) {
+        cs.block("def emit(implicit oc: OutputContext) =") {
+          cs.printlnIf(isUsingField, "val ft = fieldTransformer.get")
+          cs.println(out.close)
+        }
       }
 
       for (arg <- templateFunction.arguments; if arg.isObject)
