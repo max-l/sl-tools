@@ -18,11 +18,12 @@ abstract class EpoxyScanner extends CodeGeneration with Logging {
     }
   }
 
-  def process(file: File, rootDirectory: File, outputDirectory: File, rootPackage: Option[String], rebuild: Boolean): Option[File]
+  def process(file: File, rootDirectory: File, outputDirectory: File, rootPackage: Option[String],
+              rebuild: Boolean, i18nConfigs: Seq[I18nConfig]): Option[File]
 
   def scanFunction(file: File)(code: File => Unit)
 
-  def run(inputDirectory: File, outputDirectory: File, rootPackage: Option[String], rebuild: Boolean) = {
+  def run(inputDirectory: File, outputDirectory: File, rootPackage: Option[String], rebuild: Boolean, i18nConfigs: Seq[I18nConfig]) = {
 
     IO.checkForExistingDirectory(inputDirectory)
     IO.createDirectory(outputDirectory, true)
@@ -30,9 +31,9 @@ abstract class EpoxyScanner extends CodeGeneration with Logging {
     var filesCreated: List[File] = Nil
 
     scanFunction(inputDirectory) {
-      process(_, inputDirectory, outputDirectory, rootPackage, rebuild) match {
+      process(_, inputDirectory, outputDirectory, rootPackage, rebuild, i18nConfigs) match {
         case Some(f) => filesCreated = f :: filesCreated
-        case None =>
+        case None    =>
       }
     }
 
@@ -51,10 +52,11 @@ abstract class EpoxyScanner extends CodeGeneration with Logging {
     CmdLine(this, args).run(
       fileParameter("input directory", inputDirectoryLabel),
       fileParameter("output directory", "Generated code root directory."),
+      stringParameter("specifications", "Specifications of packages and localizations."),
       stringSwitch("root-package", "root package name", "Root package name."),
       switch("rebuild", "Always rebuild all output files.")) {
-        (inputDirectory, rootPackage, outputDirectory, rebuild) =>
-          run(inputDirectory, rootPackage, outputDirectory, rebuild)
+        (inputDirectory, rootPackage, specifications, outputDirectory, rebuild) =>
+          run(inputDirectory, rootPackage, outputDirectory, rebuild, I18nConfig.toI18nConfigs(specifications))
       }
   }
 }

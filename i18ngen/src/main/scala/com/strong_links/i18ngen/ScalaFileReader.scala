@@ -1,5 +1,7 @@
 package com.strong_links.i18ngen
 
+// import com.strong_links.scalaforms_demo.i18nCatalog._
+
 import com.strong_links.core._
 import com.strong_links.core.lex._
 import java.io.File
@@ -9,15 +11,15 @@ class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) w
   type Calls = scala.collection.mutable.ListBuffer[SourceI18nCall]
 
   val ScalaLineComments = symbol
-  val I18nNeutral = idSymbol("I18n")
-  val I18nNonNeutral = idSymbol("I18nPlural")
-  val I18nNeutralCtxt = idSymbol("I18nCtxt")
-  val I18nNonNeutralCtxt = idSymbol("I18nPluralCtxt")
+  val I18nNeutral = idSymbol("i18n")
+  val I18nNonNeutral = idSymbol("i18nPlural")
+  val I18nNeutralCtxt = idSymbol("i18nCtxt")
+  val I18nNonNeutralCtxt = idSymbol("i18nPluralCtxt")
   val Package = idSymbol
   val Trait = idSymbol
   val Type = idSymbol
   val Import = idSymbol
-  val _Class = idSymbol
+  val _Class = idSymbol("class")
   val _Object = idSymbol("object")
   val LeftBrace = specialSymbol("{")
   val RightBrace = specialSymbol("}")
@@ -91,7 +93,8 @@ class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) w
     }
   }
 
-  def add(withContext: Boolean, withPlural: Boolean, lineNumber: Int, entryStartLineNumber: Int, pack: List[String], calls: Calls) {
+  def add(withContext: Boolean, withPlural: Boolean, lineNumber: Int, entryStartLineNumber: Int,
+          pack: List[String], importedI18nCatalog: Option[List[String]], calls: Calls) {
     val msgCtxt = if (withContext) { val ctx = eatString; skip(Comma); Some(ctx) } else None
     val msgidValue = eatString
     val msgPlural = if (withPlural) {
@@ -104,18 +107,22 @@ class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) w
       None
     if (pack == Nil)
       Errors.fatal("No package is in scope.")
-    calls += new SourceI18nCall(pack, msgCtxt, msgidValue, msgPlural, comments.obtainAtLine(lineNumber), file, entryStartLineNumber)
+    importedI18nCatalog match {
+      case None => Errors.fatal("No imported i18nCatalog is in scope.")
+      case Some(ic) =>
+        calls += new SourceI18nCall(ic, msgCtxt, msgidValue, msgPlural, comments.obtainAtLine(lineNumber), file, entryStartLineNumber)
+    }
   }
 
   // We assume that it is a real I18n usage when the identified I18n symbol is followed by a right
   // parenthesis and a literal string. Else we simply ignore.
-  def tryAdd(withContext: Boolean, withPlural: Boolean, pack: List[String], calls: Calls) {
+  def tryAdd(withContext: Boolean, withPlural: Boolean, pack: List[String], importedI18nCatalog: Option[List[String]], calls: Calls) {
     val entryStartLineNumber = token.lineNumber
     getToken
     if (token is LeftParenthesis) {
       getToken
       if (token is CharacterString)
-        add(withContext, withPlural, token.lineNumber, entryStartLineNumber, pack, calls)
+        add(withContext, withPlural, token.lineNumber, entryStartLineNumber, pack, importedI18nCatalog, calls)
     }
   }
 
@@ -139,49 +146,87 @@ class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) w
     eatPackageSegments
   }
 
-  def processToken(pack: List[String], calls: Calls) {
+  def processOtherToken(pack: List[String], importedI18nCatalog: Option[List[String]], calls: Calls) {
     token.symbol match {
       case I18nNeutral =>
-        tryAdd(false, false, pack, calls)
+        tryAdd(false, false, pack, importedI18nCatalog, calls)
       case I18nNeutralCtxt =>
-        tryAdd(true, false, pack, calls)
+        tryAdd(true, false, pack, importedI18nCatalog, calls)
       case I18nNonNeutral =>
-        tryAdd(false, true, pack, calls)
+        tryAdd(false, true, pack, importedI18nCatalog, calls)
       case I18nNonNeutralCtxt =>
-        tryAdd(true, true, pack, calls)
+        tryAdd(true, true, pack, importedI18nCatalog, calls)
       case _ =>
         getToken
     }
   }
 
-  def parsePackage(fp: List[String], calls: Calls) = {
-    while (token isNot Eof)
-      if (token is Package) {
-        val pi = getPackageInfo
-        if (pi.isBlock)
-          parseBlockPackage(fp, pi.packageSegments, calls)
-      } else
-        processToken(fp, calls)
+  def eatImportSegments: Option[List[String]] = {
+    if (token isNot Identifier)
+      return None
+    var packageSegments = scala.collection.mutable.ListBuffer(token.value)
+    getToken
+    while (token is Dot) {
+      getToken
+      if (token isNot Identifier)
+        return None
+      packageSegments += token.value
+      getToken
+    }
+    Some(packageSegments.toList)
   }
 
-  def parseBlockPackage(fp: List[String], bp: List[String], calls: Calls) {
+  def processImport(importedI18nCatalog: Option[List[String]]) = {
+    eatToken(Import)
+    eatImportSegments match {
+      case Some(segments) =>
+        if (segments.takeRight(2) == List("i18nCatalog", "_")) {
+          val importedPackageNameSegments = segments.dropRight(2)
+          I18nConfig.checkPackageSegments(importedPackageNameSegments)
+          importedI18nCatalog match {
+            case None =>
+            case Some(ic) => Errors.fatal("Multiple i18nCatalog objects in scope: _ and _." <<
+              (importedPackageNameSegments.mkString("."), ic.mkString(".")))
+          }
+          Some(importedPackageNameSegments)
+        } else
+          importedI18nCatalog
+      case None => None
+    }
+  }
+
+  def parsePackage(fp: List[String], importedI18nCatalog: Option[List[String]], calls: Calls) = {
+    var currentImportedI18nCatalog = importedI18nCatalog
+    while (token isNot Eof)
+      if (token is LeftBrace)
+        parseBlock(fp, Nil, currentImportedI18nCatalog, calls)
+      else if (token is Package) {
+        val pi = getPackageInfo
+        if (pi.isBlock)
+          parseBlock(fp, pi.packageSegments, currentImportedI18nCatalog, calls)
+      } else if (token is Import)
+        currentImportedI18nCatalog = processImport(currentImportedI18nCatalog)
+      else
+        processOtherToken(fp, currentImportedI18nCatalog, calls)
+  }
+
+  def parseBlock(fp: List[String], bp: List[String], importedI18nCatalog: Option[List[String]], calls: Calls) {
+    var currentImportedI18nCatalog = importedI18nCatalog
     skip(LeftBrace)
-    var level = 1
     val pack = fp ::: bp
-    while (level != 0) {
+    while ((token isNot RightBrace) && (token isNot Eof)) {
       if (token is LeftBrace) {
-        level += 1
-        getToken
-      } else if (token is RightBrace) {
-        level -= 1
-        getToken
+        parseBlock(fp, bp, currentImportedI18nCatalog, calls)
       } else if (token is Package) {
         val pi = getPackageInfo
         if (pi.isBlock)
-          parseBlockPackage(fp, bp ::: pi.packageSegments, calls)
-      } else
-        processToken(pack, calls)
+          parseBlock(fp, bp ::: pi.packageSegments, currentImportedI18nCatalog, calls)
+      } else if (token is Import)
+        currentImportedI18nCatalog = processImport(currentImportedI18nCatalog)
+      else
+        processOtherToken(pack, currentImportedI18nCatalog, calls)
     }
+    eatToken(RightBrace)
   }
 
   case class PackageInfo(packageSegments: List[String], objectPackage: Boolean, isBlock: Boolean)
@@ -224,10 +269,10 @@ class ScalaFileReader(file: File) extends LexParser(IO.loadUtf8TextFile(file)) w
     val (fp, bp) = getInitialPackages
 
     if (bp == Nil)
-      parsePackage(fp, calls)
+      parsePackage(fp, None, calls)
     else {
-      parseBlockPackage(fp, bp, calls)
-      parsePackage(fp, calls)
+      parseBlock(fp, bp, None, calls)
+      parsePackage(fp, None, calls)
     }
     expect(Eof)
 

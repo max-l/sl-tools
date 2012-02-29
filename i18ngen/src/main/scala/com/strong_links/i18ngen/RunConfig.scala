@@ -8,28 +8,11 @@ import java.io.File
 object RunConfig {
 
   val DEFAULT_FUZZY_THRESHOLD = 0.3
-
-  private def toPps(packageSpecifications: String) = {
-    Util.split(packageSpecifications, "/") match {
-      case List(codeKey) => (codeKey, "", "", "")
-      case List(codeKey, masterKeys) => (codeKey, masterKeys, "", "")
-      case List(codeKey, masterKeys, subKeys) => (codeKey, masterKeys, subKeys, "")
-      case List(codeKey, masterKeys, subKeys, mappings) => (codeKey, masterKeys, subKeys, mappings)
-      case _ => Errors.fatal("Invalid package specifications _." << packageSpecifications)
-    }
-  }
-
-  def toI18nConfigs(specifications: String) =
-    for (
-      s <- Util.split(specifications, ';').map(_.trim).filter(!_.isEmpty);
-      (packageName, packageSpecifications) = Util.splitTwoTrimmed(s, '=');
-      (codeKey, masterKeys, subKeys, mappings) = toPps(packageSpecifications)
-    ) yield new I18nConfig(packageName, codeKey, masterKeys, subKeys, mappings)
 }
 
 class RunConfig(val i18nConfigs: Seq[I18nConfig], val optionalFuzzyThreshold: Option[Double],
-  val scalaRootDirectory: File, val generatedScalaRootDirectory: File, val outputRootDirectory: File)
-  extends Logging {
+                val scalaRootDirectory: File, val generatedScalaRootDirectory: File, val outputRootDirectory: File)
+    extends Logging {
 
   val fuzzyThreshold = optionalFuzzyThreshold.getOrElse(RunConfig.DEFAULT_FUZZY_THRESHOLD)
   val fuzzyEnabled = fuzzyThreshold != 0.0
@@ -38,13 +21,13 @@ class RunConfig(val i18nConfigs: Seq[I18nConfig], val optionalFuzzyThreshold: Op
     Errors.fatal("Fuzzy match threshold _ cannot be negative." << fuzzyThreshold)
 
   i18nConfigs.groupBy(_.packageName).filter(_._2.length > 1).map(_._1).toList match {
-    case Nil =>
+    case Nil     =>
     case badGuys => Errors.fatal("Duplicate packages _." << badGuys)
   }
 
   def this(specifications: String, optionalFuzzyThreshold: Option[Double],
-    scalaRootDirectory: File, templatesRootDirectory: File, outputRootDirectory: File) =
-    this(RunConfig.toI18nConfigs(specifications), optionalFuzzyThreshold,
+           scalaRootDirectory: File, templatesRootDirectory: File, outputRootDirectory: File) =
+    this(I18nConfig.toI18nConfigs(specifications), optionalFuzzyThreshold,
       scalaRootDirectory, templatesRootDirectory, outputRootDirectory)
 
   IO.checkForExistingDirectory(scalaRootDirectory)

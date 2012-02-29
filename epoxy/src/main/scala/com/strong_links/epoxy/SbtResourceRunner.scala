@@ -5,7 +5,8 @@ import com.strong_links.core._
 import java.io.File
 
 object SbtResourceRunner {
-  def apply(inputDirectory: File, outputDirectory: File, rootPackage: Option[String], rebuild: Boolean) = {
-    (new ResourceScanner).run(inputDirectory, outputDirectory, rootPackage, rebuild)
+  def apply(inputDirectory: File, outputDirectory: File, rootPackage: Option[String],
+            rebuild: Boolean, i18nConfigs: Seq[I18nConfig]) = {
+    (new ResourceScanner).run(inputDirectory, outputDirectory, rootPackage, rebuild, i18nConfigs)
   }
 }

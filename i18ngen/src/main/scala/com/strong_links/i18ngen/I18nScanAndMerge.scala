@@ -67,7 +67,8 @@ class Merger(runConfig: RunConfig, i18nConfig: I18nConfig, i18nLocale: I18nLocal
       val freshPoFileWriter = new PoFileWriter(newPoFile, parseResults.headerInfo.nPlural,
         parseResults.poHeaderEntry :: newPoEntries, oldObsoleteComments ::: newObsoleteComments)
       val k = freshPoFileWriter.generate
-      logWarn(Util.sp("_ entry is missing translations.", "_ entries are missing translations.", k) << k)
+      if (k > 0)
+        logWarn(Util.sp("_ entry is missing translations.", "_ entries are missing translations.", k) << k)
 
       // The newly merged Po file can now replace the old Po file.
       logDebug("Renaming _ to _" <<< (newPoFile, poFile))

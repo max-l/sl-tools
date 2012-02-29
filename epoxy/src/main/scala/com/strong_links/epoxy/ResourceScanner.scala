@@ -19,7 +19,8 @@ class ResourceScanner extends EpoxyScanner {
       Nil
   }
 
-  def processFiles(files: List[File], resCompCacheFile: File, directory: File, rootDirectory: File, outputDirectory: File, rootPackage: Option[String], rebuild: Boolean): File = {
+  def processFiles(files: List[File], resCompCacheFile: File, directory: File, rootDirectory: File, outputDirectory: File, rootPackage: Option[String],
+                   rebuild: Boolean, i18nConfigs: Seq[I18nConfig]): File = {
     val segments = computePackageNameSegments(rootDirectory, directory, rootPackage)
     val fullPackageName = segments.mkString(".")
     val masterPackageSegments = segments.dropRight(1)
@@ -91,7 +92,8 @@ class ResourceScanner extends EpoxyScanner {
     outputFile
   }
 
-  def process(directory: File, rootDirectory: File, outputDirectory: File, rootPackage: Option[String], rebuild: Boolean): Option[File] = {
+  def process(directory: File, rootDirectory: File, outputDirectory: File, rootPackage: Option[String],
+              rebuild: Boolean, i18nConfigs: Seq[I18nConfig]): Option[File] = {
 
     val fname = "rescomp.cache"
     val resCompCacheFile = IO.makeFile(directory, fname)
@@ -109,7 +111,7 @@ class ResourceScanner extends EpoxyScanner {
       None
     } else {
       logDebug("Directory not empty, processing files.")
-      Some(processFiles(files, resCompCacheFile, directory, rootDirectory, outputDirectory, rootPackage, rebuild))
+      Some(processFiles(files, resCompCacheFile, directory, rootDirectory, outputDirectory, rootPackage, rebuild, i18nConfigs))
     }
   }
 

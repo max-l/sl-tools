@@ -29,7 +29,7 @@ class CodeWriter(templateFunction: TemplateFunction, initialStartToken: LexToken
   }
 
   def writeI18n(x: String) = if (x != "") {
-    writeCache(Convert.toScala(x), templateFunction.cacheI18n)("I18n(\"" + _ + "\")", _ + ".f(oc.i18nLocale)")
+    writeCache(Convert.toScala(x), templateFunction.cacheI18n)("i18n(\"" + _ + "\")", _ + ".f(oc.i18nLocale)")
   }
 
   def writeUri(uri: String) {

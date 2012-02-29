@@ -5,6 +5,8 @@ import sbt._
 import sbt.Keys._
 import sbt.ResolvedProject
 
+import com.strong_links.i18ngen.I18nGen
+
 object Epoxy {
 
   private def wrapSbtLogger(sbtLogger: sbt.Logger, _logLevel: Level.Value): com.strong_links.core.Logging.GenericLogger = new {
@@ -26,6 +28,10 @@ object Epoxy {
     def error(msg: String): Unit = sbtLogger.error(msg)
   }
 
+  val i18nConfigs = TaskKey[Option[Seq[I18nConfig]]]("i18ngen-config")
+
+  //import com.strong_links.i18ngen.I18nGen I18nGen.
+
   val epoxyTemplateRoots = TaskKey[Seq[File]]("epoxy-template-root-directories")
 
   val epoxyResourceRoots = TaskKey[Seq[File]]("epoxy-resource-root-directories")
@@ -42,18 +48,20 @@ object Epoxy {
   private def defineEpoxyTask(forCompile: Boolean, rebuild: Boolean) = (
     logLevel,
     streams,
-    organization,
+    I18nGen.i18nConfigs, //organization,
     thisProject,
     watchedTemplates,
     watchedResources,
     epoxyTemplateRoots,
     epoxyResourceRoots,
-    (sourceManaged in Compile)) map { (lLevel, streams, org, proj, wt, wr, templateDirs, resourceDirs, outDir) =>
+    (sourceManaged in Compile)) map { (lLevel, streams, /*org*/ i18nConfigs, proj, wt, wr, templateDirs, resourceDirs, outDir) =>
+
+      val org = "com.strong_links"
 
       Logging.setLogger(c => wrapSbtLogger(streams.log, lLevel))
 
-      val res1 = templateDirs.flatMap(td => if (td.exists) SbtTemplateRunner(td, outDir, mkRootPackage(org, proj, ".templates"), rebuild) else Nil)
-      val res2 = resourceDirs.flatMap(rd => if (rd.exists) SbtResourceRunner(rd, outDir, mkRootPackage(org, proj, ".resources"), rebuild) else Nil)
+      val res1 = templateDirs.flatMap(td => if (td.exists) SbtTemplateRunner(td, outDir, mkRootPackage(org, proj, ".templates"), rebuild, i18nConfigs) else Nil)
+      val res2 = resourceDirs.flatMap(rd => if (rd.exists) SbtResourceRunner(rd, outDir, mkRootPackage(org, proj, ".resources"), rebuild, i18nConfigs) else Nil)
 
       if (forCompile)
         res1 ++ res2
@@ -77,6 +85,6 @@ object Epoxy {
       watchSources <++= (watchedResources in Compile),
       epoxyTask,
       epoxyRebuildAllTask,
-      (sourceGenerators in Compile) <+= defineEpoxyTask(true, false))
+      (sourceGenerators in Compile) <+= defineEpoxyTask(true, true))
   }
 }

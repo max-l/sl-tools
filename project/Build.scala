@@ -26,7 +26,7 @@ object Buildz extends Build {
     id = "epoxy",
     base = file("epoxy"),    
     settings = buildSettings
-  )
+  ) dependsOn(i18ngen)
   
   lazy val i18ngen = Project(
     id = "i18ngen",

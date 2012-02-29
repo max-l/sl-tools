@@ -9,7 +9,7 @@ object I18nGenerateCatalogs extends Logging {
 
     def generate(i18nConfig: I18nConfig) = {
 
-      val outputFile = runConfig.getOutputFileFor(i18nConfig.packageName, "PackageI18nConfig.scala")
+      val outputFile = runConfig.getOutputFileFor(i18nConfig.packageName, "I18nCatalog.scala")
 
       logInfo("Generating _." << outputFile)
 
@@ -18,9 +18,7 @@ object I18nGenerateCatalogs extends Logging {
       b += ("")
       b += ("import com.strong_links.core._")
       b += ("")
-      b += ("object PackageI18nConfig {")
-      b += ("  def catalog = new I18nCatalog(new I18nConfig(_))" << i18nConfig.serialize)
-      b += ("}")
+      b += ("object i18nCatalog extends I18nCatalog(new I18nConfig(_))" << i18nConfig.serialize)
       IO.writeUtf8ToFile(outputFile, b.mkString("\n"))
       outputFile
     }

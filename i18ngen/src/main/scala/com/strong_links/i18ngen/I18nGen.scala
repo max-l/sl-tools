@@ -41,9 +41,9 @@ object I18nGen {
     sourceManaged in Compile).map { (lLevel, streams, org, i18nConfigs, fuzz, templateDirs, srcDirs, outDir) =>
 
       def getSingleDirectory(files: Seq[File], dirName: String) = files.filter(_.getName.endsWith(dirName)) match {
-        case Seq() => Errors.fatal("No directory ending in _ found in supplied list _." << (dirName, files))
+        case Seq()       => Errors.fatal("No directory ending in _ found in supplied list _." << (dirName, files))
         case Seq(single) => single
-        case seq => Errors.fatal("More than one directory ending in _ found: _." << (dirName, seq))
+        case seq         => Errors.fatal("More than one directory ending in _ found: _." << (dirName, seq))
       }
 
       val scalaSrcDir = getSingleDirectory(srcDirs, "scala")
