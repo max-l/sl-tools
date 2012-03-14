@@ -80,13 +80,10 @@ class CodeWriter(templateFunction: TemplateFunction, initialStartToken: LexToken
     else
       templateFunction.arguments.map(arg => arg.name + ": " + arg.makeType).mkString("(", ", ", ")")
 
-    val isUsingField = templateFunction.usesFieldTransformer
-
     IO.usingLeveledCharStream { cs =>
 
       cs.block("def _1_2 = new TemplateFunction" << (templateFunction.name, makeArgList)) {
         cs.block("def emit(implicit oc: OutputContext) =") {
-          cs.printlnIf(isUsingField, "val ft = fieldTransformer.get")
           cs.println(out.close)
         }
       }

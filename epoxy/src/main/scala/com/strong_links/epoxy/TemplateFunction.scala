@@ -204,8 +204,6 @@ class TemplateFunction(val templateCompiler: TemplateCompiler) {
     (codeWriter.generateCode, hasNextFunction)
   }
 
-  def usesFieldTransformer = arguments.exists(_.usesFieldTransformer)
-
   def cleanComments(s: String): String = {
     val pos = s.indexOf(HtmlStartComment.special)
     if (pos == -1)

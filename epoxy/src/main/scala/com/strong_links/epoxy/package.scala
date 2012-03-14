@@ -8,7 +8,7 @@ package object epoxy {
 
   def UUID_SEPARATOR = "++"
 
-  val T_BASE_FIELD = "BaseField[_]"
+  val T_FORM_FIELD = "FormField[_]"
   val T_STRING = nameOf(classOf[String])
   val T_I18N = nameOf(classOf[I18n])
   val T_XML = nameOf(<a/>.getClass)

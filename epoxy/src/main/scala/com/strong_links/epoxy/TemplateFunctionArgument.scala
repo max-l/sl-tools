@@ -55,7 +55,5 @@ class TemplateFunctionArgument(val templateFunction: TemplateFunction, val name:
         member
     }
   }
-
-  def usesFieldTransformer = _members.values.exists(_.isBaseField)
 }
 

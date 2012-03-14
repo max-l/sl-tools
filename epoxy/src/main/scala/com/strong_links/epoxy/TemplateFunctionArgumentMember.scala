@@ -24,9 +24,9 @@ class TemplateFunctionArgumentMember(val templateFunctionArgument: TemplateFunct
 
   def hasBaseType = _baseType != None
 
-  def isBaseField = _baseType match {
+  def isFormField = _baseType match {
     case None     => Errors.fatal("_baseType still undefined.")
-    case Some(bt) => bt == T_BASE_FIELD
+    case Some(bt) => bt == T_FORM_FIELD
   }
 
   def getFinalType: String = (_baseType, _isOption) match {
